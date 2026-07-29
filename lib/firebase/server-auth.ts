@@ -8,7 +8,7 @@ import { getTokens } from "next-firebase-auth-edge";
 import { authConfig, paths } from "@/lib/env";
 import { ROLE_CLAIM, USERNAME_CLAIM, type AppUser } from "@/lib/auth";
 import type { Role } from "@/lib/types";
-import { adminDb } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
 
 /** Decode the role claim, falling back to a safe non-admin default. */
 function decodeRole(claim: unknown): Role {
@@ -50,7 +50,7 @@ export async function getAppUser(): Promise<AppUser | null> {
   } else if (username) {
     // Staff: verify the username profile still exists and is bound to this email.
     try {
-      const snap = await adminDb
+      const snap = await getAdminDb()
         .collection(paths.usernamesCollection)
         .doc(username)
         .get();
