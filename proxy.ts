@@ -1,5 +1,6 @@
-// middleware.ts — verify the session cookie on every request and gate
+// proxy.ts — verify the session cookie on every request and gate
 // protected routes. Runs on the Edge runtime.
+// (Next 16 renamed the middleware convention to "proxy".)
 //
 // Public paths: /login, /api/login, /api/logout, and static assets.
 // Everything else requires a valid session cookie, else redirect to /login.
@@ -19,7 +20,7 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths through without auth checks.
