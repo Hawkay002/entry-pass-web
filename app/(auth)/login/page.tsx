@@ -1,0 +1,103 @@
+// app/(auth)/login/page.tsx — the only public route.
+// Posts credentials to /api/login, which mints the httpOnly session cookie.
+
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Starfield } from "@/components/layout/starfield";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        router.push("/tickets");
+        router.refresh();
+        return;
+      }
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      setError(data.error ?? "Authentication failed.");
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center p-4">
+      <Starfield />
+      <Card className="glass-panel relative z-10 w-full max-w-sm">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-accent-secondary/20">
+            <ShieldCheck className="h-6 w-6 text-accent-secondary" />
+          </div>
+          <CardTitle className="text-2xl">Authorized Access</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Verify your identity to continue.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Authenticate
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
