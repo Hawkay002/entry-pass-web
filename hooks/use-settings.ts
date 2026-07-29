@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { paths } from "@/lib/env";
+import { paths } from "@/lib/paths";
 import type { EventSettings } from "@/lib/types";
 
 const EMPTY: EventSettings = { name: "", place: "", deadline: "" };

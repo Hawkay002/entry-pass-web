@@ -4,7 +4,7 @@
 // even under restrictive Firestore Rules.
 
 import { getAdminDb } from "@/lib/firebase/admin";
-import { paths } from "@/lib/env";
+import { paths } from "@/lib/paths";
 import type { LogAction } from "@/lib/types";
 import type { AppUser } from "@/lib/auth";
 

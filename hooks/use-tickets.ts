@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { paths } from "@/lib/env";
+import { paths } from "@/lib/paths";
 import type { Ticket } from "@/lib/types";
 
 function coerce(raw: Record<string, unknown> | undefined, id: string): Ticket {

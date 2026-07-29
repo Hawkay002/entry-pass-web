@@ -5,7 +5,7 @@
 "use server";
 
 import { getAdminDb } from "@/lib/firebase/admin";
-import { paths } from "@/lib/env";
+import { paths } from "@/lib/paths";
 import { getAppUser } from "@/lib/firebase/server-auth";
 import { logAction } from "@/lib/firebase/log";
 import type { Gender, TicketType } from "@/lib/types";

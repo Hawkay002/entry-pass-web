@@ -1,30 +1,20 @@
-// app/api/login/route.ts — sign in with Firebase client SDK, then mint a
-// server session cookie via next-firebase-auth-edge. The ID token never
-// persists; only the httpOnly session cookie does.
+// app/api/login/route.ts — receives a Firebase ID token (minted by the browser),
+// verifies it server-side, and exchanges it for an httpOnly session cookie.
+//
+// Cookie creation uses firebase-admin's native createSessionCookie (more
+// reliable than next-firebase-auth-edge's wrapper). Cookie verification on
+// subsequent requests still uses next-firebase-auth-edge in proxy.ts +
+// server-auth.ts.
 
 import { NextResponse, type NextRequest } from "next/server";
-import { signInWithEmailAndPassword, getIdToken } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { getAdminAuth } from "@/lib/firebase/admin";
 import { authConfig } from "@/lib/env";
-import { getFirebaseAuth } from "next-firebase-auth-edge";
-
-// Note: this route is a Route Handler (runs on the server), but the Firebase
-// *client* SDK sign-in here happens server-side during the request — we only
-// use it to obtain a fresh ID token, which we immediately exchange for a
-// session cookie. The client never holds the ID token.
-
-const serverAuth = getFirebaseAuth({
-  serviceAccount: authConfig.serviceAccount as never,
-  apiKey: authConfig.apiKey,
-});
 
 export async function POST(req: NextRequest) {
-  let email: string;
-  let password: string;
+  let idToken: string;
   try {
     const body = await req.json();
-    email = String(body?.email ?? "");
-    password = String(body?.password ?? "");
+    idToken = String(body?.idToken ?? "");
   } catch {
     return NextResponse.json(
       { ok: false, error: "Invalid request body." },
@@ -32,35 +22,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!email || !password) {
+  if (!idToken) {
     return NextResponse.json(
-      { ok: false, error: "Email and password are required." },
+      { ok: false, error: "ID token is required." },
       { status: 400 }
     );
   }
 
   try {
-    // 1. Verify credentials with Firebase Auth (server-side client SDK call).
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    const idToken = await getIdToken(credential.user);
+    // Mint a long-lived session cookie (14 days) via firebase-admin.
+    const expiresInMs = 1000 * 60 * 60 * 24 * 14;
+    const sessionCookie = await getAdminAuth().createSessionCookie(idToken, {
+      expiresIn: expiresInMs,
+    });
 
-    // 2. Mint a long-lived session cookie.
-    const expiresInMs = 1000 * 60 * 60 * 24 * 14; // 14 days
-    const sessionCookie = await serverAuth.createSessionCookie(
-      idToken,
-      expiresInMs
-    );
-
-    // 3. Set the httpOnly cookie.
     const res = NextResponse.json({ ok: true });
     res.cookies.set(authConfig.cookieName, sessionCookie, {
       ...authConfig.cookieSerializeOptions,
       httpOnly: true,
     });
     return res;
-  } catch {
+  } catch (err) {
+    console.error("[login] session cookie creation failed:", err);
     return NextResponse.json(
-      { ok: false, error: "Invalid email or password." },
+      { ok: false, error: "Could not create session. Please try again." },
       { status: 401 }
     );
   }

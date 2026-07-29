@@ -5,6 +5,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword, getIdToken } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,10 +32,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 1. Sign in with Firebase client SDK (in the browser).
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await getIdToken(cred.user);
+
+      // 2. Send the ID token to the server, which mints the session cookie.
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ idToken }),
       });
 
       if (res.ok) {
@@ -46,8 +53,16 @@ export default function LoginPage() {
         error?: string;
       };
       setError(data.error ?? "Authentication failed.");
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      // Firebase Auth errors carry a readable code.
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+        setError("Invalid email or password.");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many attempts. Try again later.");
+      } else {
+        setError("Authentication failed.");
+      }
     } finally {
       setLoading(false);
     }
