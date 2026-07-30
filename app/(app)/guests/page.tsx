@@ -3,7 +3,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Search, Trash2, Filter } from "lucide-react";
+import { Loader2, Search, Trash2, Filter, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useTickets } from "@/hooks/use-tickets";
+import { useSettings } from "@/hooks/use-settings";
 import {
   filterTickets,
   DEFAULT_FILTERS,
@@ -46,8 +47,10 @@ import {
 } from "@/lib/guest-list";
 import { deleteTickets } from "@/app/actions/tickets";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
-import type { TicketStatus } from "@/lib/types";
+import type { Ticket, TicketStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ImportExportButtons } from "@/components/guests/import-export";
+import { TicketViewModal } from "@/components/tickets/ticket-view-modal";
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
   "coming-soon": "bg-amber-500/20 text-amber-400",
@@ -69,6 +72,9 @@ export default function GuestsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
+  const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+  const { settings } = useSettings();
 
   const filtered = useMemo(
     () => filterTickets(tickets, filters),
@@ -126,7 +132,11 @@ export default function GuestsPage() {
     <div className="glass-panel space-y-4 p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Guest List</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <ImportExportButtons
+            selectedTickets={filtered.filter((t) => selected.has(t.id))}
+            allTickets={tickets}
+          />
           {selectionMode ? (
             <>
               <span className="self-center text-sm text-accent-secondary">
@@ -260,6 +270,7 @@ export default function GuestsPage() {
               <TableHead>Contact</TableHead>
               <TableHead>Ticket ID</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -317,6 +328,18 @@ export default function GuestsPage() {
                       {t.status.replace("-", " ")}
                     </span>
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setViewTicket(t);
+                        setViewOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -354,6 +377,13 @@ export default function GuestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TicketViewModal
+        ticket={viewTicket}
+        eventName={settings.name || undefined}
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+      />
     </div>
   );
 }

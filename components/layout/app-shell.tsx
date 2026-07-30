@@ -10,6 +10,8 @@ import { useRemoteLocks } from "@/hooks/use-remote-locks";
 import { useHeartbeat } from "@/hooks/use-presence";
 import { useChat } from "@/hooks/use-chat";
 import { ChatDrawer } from "@/components/chat/chat-drawer";
+import { HelpTray } from "@/components/layout/help-tray";
+import { EasterEgg } from "@/components/layout/easter-egg";
 import type { LockMetadata, TabName } from "@/lib/types";
 import {
   Dialog,
@@ -114,6 +116,9 @@ export function AppShell({
         myEmail={userEmail}
         myUsername={username}
       />
+
+      <HelpTray />
+      <EasterEgg />
     </div>
   );
 }

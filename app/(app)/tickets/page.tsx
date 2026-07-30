@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,7 @@ import {
 import { TicketCard } from "@/components/tickets/ticket-card";
 import { useSettings } from "@/hooks/use-settings";
 import { createTicket } from "@/app/actions/tickets";
+import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
 import type { Gender, Ticket, TicketType } from "@/lib/types";
 
 const schema = z.object({
@@ -53,6 +54,24 @@ export default function TicketsPage() {
     phone: "",
     ticketType: "Classic",
   });
+  const [isSharing, setIsSharing] = useState(false);
+  const ticketRef = useRef<HTMLDivElement>(null);
+
+  async function handleShare() {
+    if (!ticketRef.current || preview.id === "—") return;
+    setIsSharing(true);
+    try {
+      await shareTicketViaWhatsApp(
+        ticketRef.current,
+        preview.name,
+        preview.phone
+      );
+    } catch {
+      toast.error("Could not generate ticket image");
+    } finally {
+      setIsSharing(false);
+    }
+  }
 
   const {
     register,
@@ -218,7 +237,21 @@ export default function TicketsPage() {
       </Card>
 
       <div className="flex flex-col gap-4">
-        <TicketCard ticket={livePreview} eventName={settings.name || undefined} />
+        <div ref={ticketRef}>
+          <TicketCard ticket={livePreview} eventName={settings.name || undefined} />
+        </div>
+        <Button
+          className="bg-[#25D366] text-white hover:bg-[#1faa54]"
+          disabled={isSharing || preview.id === "—"}
+          onClick={handleShare}
+        >
+          {isSharing ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <span className="mr-2">💬</span>
+          )}
+          Save & Share via WhatsApp
+        </Button>
       </div>
     </div>
   );
