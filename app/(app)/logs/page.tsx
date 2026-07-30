@@ -1,12 +1,19 @@
-// app/(app)/logs/page.tsx — placeholder; full feature in Phase 2.
-// Admin-only (the nav hides this for staff, and Firestore Rules will enforce).
-export default function LogsPage() {
-  return (
-    <div className="glass-panel p-8 text-muted-foreground">
-      <h2 className="mb-2 text-lg font-semibold text-foreground">
-        Activity Logs
-      </h2>
-      <p className="text-sm">Coming in Phase 2.</p>
-    </div>
-  );
+// app/(app)/logs/page.tsx — Activity Logs (admin only).
+// Server component guards role, fetches logs via Admin SDK, renders the
+// client table for filter/search/select/delete.
+
+import { redirect } from "next/navigation";
+import { getAppUser } from "@/lib/firebase/server-auth";
+import { fetchActivityLogs } from "@/app/actions/admin";
+import { LogsTable } from "@/components/logs/logs-table";
+
+export default async function LogsPage() {
+  const user = await getAppUser();
+  if (!user) redirect("/login");
+  if (user.role !== "admin") redirect("/tickets");
+
+  const res = await fetchActivityLogs();
+  const logs = res.ok ? res.logs : [];
+
+  return <LogsTable initialLogs={logs} />;
 }
