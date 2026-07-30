@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { Starfield } from "./starfield";
 import { AppHeader } from "./app-header";
 import { useRemoteLocks } from "@/hooks/use-remote-locks";
+import { useHeartbeat } from "@/hooks/use-presence";
+import { useChat } from "@/hooks/use-chat";
+import { ChatDrawer } from "@/components/chat/chat-drawer";
 import type { LockMetadata, TabName } from "@/lib/types";
 import {
   Dialog,
@@ -34,6 +37,16 @@ export function AppShell({
     username
   );
 
+  // Heartbeat: writes device presence every 10s.
+  useHeartbeat(userEmail, username);
+
+  // Chat drawer state.
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // Unread badge count (driven by chat hook at the shell level so the bell
+  // in the header stays in sync regardless of whether the drawer is open).
+  const { totalUnread } = useChat(userEmail, username, null);
+
   // Lock/unlock popups are derived from transitions, tracked via a ref so
   // we don't setState synchronously inside a render-derived effect.
   const wasLockedRef = useRef(false);
@@ -58,7 +71,14 @@ export function AppShell({
     <div className="relative min-h-screen">
       <Starfield />
       <div className="relative z-10">
-        <AppHeader isAdmin={isAdmin} userEmail={userEmail} lockedTabs={lockedTabs} />
+        <AppHeader
+          isAdmin={isAdmin}
+          userEmail={userEmail}
+          lockedTabs={lockedTabs}
+          unreadCount={totalUnread}
+          onOpenNotifications={() => setChatOpen(true)}
+          onOpenChat={() => setChatOpen(true)}
+        />
         <main className="mx-auto max-w-6xl p-6">{children}</main>
       </div>
 
@@ -86,6 +106,14 @@ export function AppShell({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Chat + Notifications drawer */}
+      <ChatDrawer
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        myEmail={userEmail}
+        myUsername={username}
+      />
     </div>
   );
 }
