@@ -129,3 +129,16 @@ export async function deleteTickets(
   revalidatePath("/guests");
   return { ok: true, count };
 }
+
+/** Delete a single ticket by id (admin only). For client-side progress loops. */
+export async function deleteOneTicket(
+  id: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+  if (user.role !== "admin")
+    return { ok: false, error: "Admin role required to delete tickets." };
+
+  await getAdminDb().collection(paths.ticketsCollection).doc(id).delete();
+  return { ok: true };
+}

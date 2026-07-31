@@ -4,7 +4,13 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Upload, FileDown } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  DatabaseImportIcon,
+  DatabaseExportIcon,
+  FileManagementIcon,
+} from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,22 +41,57 @@ export function ImportExportButtons({
   selectedTickets: TicketType[];
   allTickets: TicketType[];
 }) {
+  const [manageOpen, setManageOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
-        <Upload className="mr-1.5 h-4 w-4" /> Import
-      </Button>
       <Button
         size="sm"
         variant="outline"
-        disabled={selectedTickets.length === 0}
-        onClick={() => setExportOpen(true)}
+        onClick={() => setManageOpen(true)}
       >
-        <FileDown className="mr-1.5 h-4 w-4" /> Export ({selectedTickets.length})
+        <HugeiconsIcon icon={FileManagementIcon} size={16} className="mr-1.5" />
+        Manage
       </Button>
+
+      {/* Manage modal — choose Import or Export */}
+      <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Guest Data</DialogTitle>
+            <DialogDescription>
+              Import guests from a file or export the selected guests.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 py-2">
+            <button
+              onClick={() => {
+                setManageOpen(false);
+                setImportOpen(true);
+              }}
+              className="flex flex-1 flex-col items-center gap-2 rounded-xl border border-white/10 p-6 transition-colors hover:bg-white/5"
+            >
+              <HugeiconsIcon icon={DatabaseImportIcon} size={28} primaryColor="#3b82f6" />
+              <span className="text-sm font-medium">Import Guests</span>
+            </button>
+            <button
+              onClick={() => {
+                setManageOpen(false);
+                setExportOpen(true);
+              }}
+              disabled={selectedTickets.length === 0}
+              className="flex flex-1 flex-col items-center gap-2 rounded-xl border border-white/10 p-6 transition-colors hover:bg-white/5 disabled:opacity-40"
+            >
+              <HugeiconsIcon icon={DatabaseExportIcon} size={28} primaryColor="#10b981" />
+              <span className="text-sm font-medium">
+                Export ({selectedTickets.length})
+              </span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ImportModal
         open={importOpen}
@@ -134,7 +175,7 @@ function ImportModal({
             className="w-full"
             onClick={() => fileRef.current?.click()}
           >
-            <Upload className="mr-2 h-4 w-4" /> Browse Files
+            <HugeiconsIcon icon={DatabaseImportIcon} size={16} className="mr-2" /> Browse Files
           </Button>
           {fileName && (
             <p className="text-sm text-success-green">

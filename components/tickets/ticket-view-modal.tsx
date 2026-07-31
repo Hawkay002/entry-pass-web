@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { TicketCard } from "./ticket-card";
 import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
 import type { Ticket } from "@/lib/types";
@@ -16,11 +18,13 @@ import type { Ticket } from "@/lib/types";
 export function TicketViewModal({
   ticket,
   eventName,
+  venue,
   open,
   onOpenChange,
 }: {
   ticket: Ticket | null;
   eventName?: string;
+  venue?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -42,8 +46,8 @@ export function TicketViewModal({
       <DialogContent className="max-w-sm">
         {ticket && (
           <div className="space-y-4">
-            <div ref={cardRef}>
-              <TicketCard ticket={ticket} eventName={eventName} />
+            <div className="flex justify-center">
+              <TicketCard ref={cardRef} ticket={ticket} eventName={eventName} venue={venue} />
             </div>
             <Button
               onClick={handleShare}
@@ -53,7 +57,7 @@ export function TicketViewModal({
               {sharing ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <span className="mr-2">💬</span>
+                <HugeiconsIcon icon={WhatsappIcon} size={16} className="mr-2" primaryColor="currentColor" />
               )}
               Share via WhatsApp
             </Button>

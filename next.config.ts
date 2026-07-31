@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
     // the stray package-lock.json in the user's home directory.
     root: __dirname,
   },
+  // Allow the Cloudflare tunnel (and other dev origins) to use HMR.
+  allowedDevOrigins: ["painting-gained-ward-cache.trycloudflare.com"],
 };
 
 export default nextConfig;

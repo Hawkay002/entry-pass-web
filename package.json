@@ -12,6 +12,7 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "5.5.7",
+    "@hugeicons/core-free-icons": "4.2.3",
     "@hugeicons/react": "1.1.9",
     "@tanstack/react-table": "8.21.3",
     "class-variance-authority": "^0.7.1",
@@ -19,7 +20,7 @@
     "cmdk": "^1.1.1",
     "firebase": "12.16.0",
     "firebase-admin": "14.2.0",
-    "html2canvas": "1.4.1",
+    "html-to-image": "1.11.13",
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
     "jsqr": "1.4.0",

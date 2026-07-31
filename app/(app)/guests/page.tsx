@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { Loader2, Search, Trash2, Filter, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -45,7 +37,7 @@ import {
   type TicketTypeFilter,
   type GenderFilter,
 } from "@/lib/guest-list";
-import { deleteTickets } from "@/app/actions/tickets";
+import { deleteOneTicket } from "@/app/actions/tickets";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
 import type { Ticket, TicketStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -74,7 +66,19 @@ export default function GuestsPage() {
   const [deleteProgress, setDeleteProgress] = useState(0);
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filtered = useMemo(
     () => filterTickets(tickets, filters),
@@ -115,33 +119,40 @@ export default function GuestsPage() {
 
   async function confirmDelete() {
     const ids = [...selected];
+    const total = ids.length;
     setDeleting(true);
     setDeleteProgress(0);
-    const res = await deleteTickets(ids);
+
+    let deleted = 0;
+    for (const id of ids) {
+      const res = await deleteOneTicket(id);
+      if (res.ok) {
+        deleted++;
+        setDeleteProgress(Math.round((deleted / total) * 100));
+      }
+    }
+
     setDeleting(false);
     setDeleteOpen(false);
-    if (res.ok) {
-      toast.success(`Deleted ${res.count} ticket(s)`);
+    if (deleted > 0) {
+      toast.success(`Deleted ${deleted} ticket(s)`);
       exitSelectionMode();
     } else {
-      toast.error("Delete failed", { description: res.error });
+      toast.error("Delete failed");
     }
   }
 
   return (
     <div className="glass-panel space-y-4 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Guest List</h2>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex items-start justify-between gap-1">
+        <h2 className="shrink-0 text-lg font-semibold">Guest List</h2>
+        <div className="flex flex-wrap justify-end gap-1.5">
           <ImportExportButtons
             selectedTickets={filtered.filter((t) => selected.has(t.id))}
             allTickets={tickets}
           />
           {selectionMode ? (
             <>
-              <span className="self-center text-sm text-accent-secondary">
-                ({selected.size} selected)
-              </span>
               <Button
                 size="sm"
                 variant="destructive"
@@ -163,8 +174,8 @@ export default function GuestsPage() {
       </div>
 
       {/* Search + filter/sort */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search name or phone..."
@@ -175,63 +186,51 @@ export default function GuestsPage() {
             className="pl-9"
           />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="sm">
-                <Filter className="mr-1.5 h-4 w-4" /> Filter / Sort
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Ticket Type</DropdownMenuLabel>
-            <FilterRow
-              options={[
-                ["all", "All Types"],
-                ["Classic", "Classic Only"],
-                ["Diamond", "VIP"],
-                ["Gold", "VVIP"],
-              ]}
-              value={filters.ticketType}
-              onPick={(v) =>
-                setFilters((f) => ({
-                  ...f,
-                  ticketType: v as TicketTypeFilter,
-                }))
-              }
-            />
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Status</DropdownMenuLabel>
-            <FilterRow
-              options={[
-                ["all", "All Guests"],
-                ["arrived", "Arrived Only"],
-                ["coming-soon", "Coming Soon"],
-                ["absent", "Absent"],
-              ]}
-              value={filters.status}
-              onPick={(v) =>
-                setFilters((f) => ({ ...f, status: v as StatusFilter }))
-              }
-            />
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Gender</DropdownMenuLabel>
-            <FilterRow
-              options={[
-                ["all", "All Genders"],
-                ["Male", "Male Only"],
-                ["Female", "Female Only"],
-                ["Other", "Other"],
-              ]}
-              value={filters.gender}
-              onPick={(v) =>
-                setFilters((f) => ({ ...f, gender: v as GenderFilter }))
-              }
-            />
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Sort Order</DropdownMenuLabel>
-            <FilterRow
-              options={[
+        <div ref={filterRef} className="relative shrink-0">
+          <button
+            onClick={() => setFilterOpen((o) => !o)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-input bg-input/60 px-3 text-sm font-medium whitespace-nowrap transition-colors hover:bg-input/80"
+          >
+            <Filter className="h-4 w-4" /> Filter / Sort
+          </button>
+          {filterOpen && (
+            <div className="absolute right-0 top-full z-50 mt-1 max-h-[40vh] w-56 overflow-y-auto rounded-lg border border-white/10 bg-[#0f0f0f] p-1 shadow-2xl scrollbar-thin">
+              <FilterSection label="Ticket Type" />
+              {(["all", "Classic", "Diamond", "Gold"] as const).map((v) => (
+                <FilterItem
+                  key={v}
+                  label={
+                    v === "all" ? "All Types" : v === "Classic" ? "Classic Only" : v === "Diamond" ? "VIP" : "VVIP"
+                  }
+                  active={filters.ticketType === v}
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, ticketType: v as TicketTypeFilter }));
+                  }}
+                />
+              ))}
+              <FilterDivider />
+              <FilterSection label="Status" />
+              {(["all", "arrived", "coming-soon", "absent"] as const).map((v) => (
+                <FilterItem
+                  key={v}
+                  label={v === "all" ? "All Guests" : v === "coming-soon" ? "Coming Soon" : v === "arrived" ? "Arrived Only" : "Absent"}
+                  active={filters.status === v}
+                  onClick={() => setFilters((f) => ({ ...f, status: v as StatusFilter }))}
+                />
+              ))}
+              <FilterDivider />
+              <FilterSection label="Gender" />
+              {(["all", "Male", "Female", "Other"] as const).map((v) => (
+                <FilterItem
+                  key={v}
+                  label={v === "all" ? "All Genders" : `${v} Only`}
+                  active={filters.gender === v}
+                  onClick={() => setFilters((f) => ({ ...f, gender: v as GenderFilter }))}
+                />
+              ))}
+              <FilterDivider />
+              <FilterSection label="Sort Order" />
+              {([
                 ["newest", "Newest First"],
                 ["oldest", "Oldest First"],
                 ["name-asc", "Name (A-Z)"],
@@ -239,21 +238,29 @@ export default function GuestsPage() {
                 ["age-asc", "Age (Youngest)"],
                 ["age-desc", "Age (Oldest)"],
                 ["gender", "Gender (Grouped)"],
-              ]}
-              value={filters.sort}
-              onPick={(v) =>
-                setFilters((f) => ({ ...f, sort: v as SortKey }))
-              }
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
+              ] as const).map(([v, label]) => (
+                <FilterItem
+                  key={v}
+                  label={label}
+                  active={filters.sort === v}
+                  onClick={() => setFilters((f) => ({ ...f, sort: v as SortKey }))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Select-all bar */}
       {selectionMode && (
-        <div className="flex items-center gap-3 rounded-lg bg-white/5 p-3">
-          <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
-          <span className="text-sm">Select All</span>
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-white/5 p-3">
+          <div className="flex items-center gap-3">
+            <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
+            <span className="text-sm">Select All</span>
+          </div>
+          <span className="text-sm text-accent-secondary">
+            ({selected.size} selected)
+          </span>
         </div>
       )}
 
@@ -270,7 +277,7 @@ export default function GuestsPage() {
               <TableHead>Contact</TableHead>
               <TableHead>Ticket ID</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-12 text-center">View</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -362,7 +369,8 @@ export default function GuestsPage() {
             <div className="space-y-2 py-2">
               <Progress value={deleteProgress} />
               <p className="text-right text-xs text-muted-foreground">
-                Deleting...
+                Deleting {Math.round((deleteProgress / 100) * selected.size)} /{" "}
+                {selected.size}
               </p>
             </div>
           )}
@@ -381,6 +389,7 @@ export default function GuestsPage() {
       <TicketViewModal
         ticket={viewTicket}
         eventName={settings.name || undefined}
+        venue={settings.place || undefined}
         open={viewOpen}
         onOpenChange={setViewOpen}
       />
@@ -388,26 +397,24 @@ export default function GuestsPage() {
   );
 }
 
-function FilterRow({
-  options,
-  value,
-  onPick,
-}: {
-  options: [string, string][];
-  value: string;
-  onPick: (v: string) => void;
-}) {
+function FilterSection({ label }: { label: string }) {
+  return <p className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>;
+}
+
+function FilterItem({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <>
-      {options.map(([v, label]) => (
-        <DropdownMenuItem
-          key={v}
-          onClick={() => onPick(v)}
-          className={cn(v === value && "bg-white/10 font-medium")}
-        >
-          {label}
-        </DropdownMenuItem>
-      ))}
-    </>
+    <button
+      onClick={onClick}
+      className={cn(
+        "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-white/10",
+        active && "bg-white/10 font-medium text-accent-secondary"
+      )}
+    >
+      {label}
+    </button>
   );
+}
+
+function FilterDivider() {
+  return <div className="my-1 border-t border-white/10" />;
 }

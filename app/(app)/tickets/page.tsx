@@ -7,7 +7,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserRound, Smartphone, Tickets } from "lucide-react";
+import { FaVenusMars } from "react-icons/fa6";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AddInvoiceIcon, WhatsappIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +27,19 @@ import { useSettings } from "@/hooks/use-settings";
 import { createTicket } from "@/app/actions/tickets";
 import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
 import type { Gender, Ticket, TicketType } from "@/lib/types";
+
+// Custom calendar-date-1 inline SVG (age icon).
+function CalendarDateIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none">
+      <path d="M16 2V6M8 2V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 10H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.5 18H13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13 4H11C7.22876 4 5.34315 4 4.17157 5.17157C3 6.34315 3 8.22876 3 12V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V12C21 8.22876 21 6.34315 19.8284 5.17157C18.6569 4 16.7712 4 13 4Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 18V14.4878C12 13.6127 12 13.1752 11.7927 13.0367C11.5854 12.8981 11.3236 13.1606 10.8 13.6856L10.5 13.9864" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const schema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -55,6 +71,8 @@ export default function TicketsPage() {
     ticketType: "Classic",
   });
   const [isSharing, setIsSharing] = useState(false);
+  const [ticketTypeVal, setTicketTypeVal] = useState<TicketType>("Classic");
+  const [genderVal, setGenderVal] = useState<Gender>("Male");
   const ticketRef = useRef<HTMLDivElement>(null);
 
   async function handleShare() {
@@ -90,20 +108,8 @@ export default function TicketsPage() {
     },
   });
 
-  // Live-preview values tracked in local state (controlled by onChange),
-  // seeded from the last submitted ticket. Avoids watch() which the React
-  // Hooks lint rule flags as incompatible with memoization.
-  const [pv, setPv] = useState({ name: "", age: "", phone: "" });
-  const [pvGender, setPvGender] = useState<Gender>("Male");
-  const [pvType, setPvType] = useState<TicketType>("Classic");
-  const livePreview = {
-    id: preview.id === "—" ? "preview" : preview.id,
-    name: pv.name || preview.name,
-    age: Number(pv.age || preview.age) || 0,
-    gender: pvGender,
-    phone: pv.phone ? "+91" + pv.phone : preview.phone,
-    ticketType: pvType,
-  };
+  // Preview only reflects the last *generated* ticket — no live-typing preview.
+  const livePreview = preview;
 
   async function onSubmit(values: FormValues) {
     const res = await createTicket({
@@ -126,9 +132,6 @@ export default function TicketsPage() {
       reset();
       setValue("gender", "Male");
       setValue("ticketType", "Classic");
-      setPv({ name: "", age: "", phone: "" });
-      setPvGender("Male");
-      setPvType("Classic");
     } else {
       toast.error("Could not issue pass", { description: res.error });
     }
@@ -143,11 +146,12 @@ export default function TicketsPage() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="flex items-center gap-1.5">
+                <UserRound className="h-3.5 w-3.5" /> Full Name
+              </Label>
               <Input
                 id="name"
                 {...register("name")}
-                onChange={(e) => setPv((p) => ({ ...p, name: e.target.value }))}
                 placeholder="Full Name"
               />
               {errors.name && (
@@ -156,55 +160,83 @@ export default function TicketsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Ticket Type</Label>
-              <Select
-                defaultValue="Classic"
-                onValueChange={(v) => {
-                  const t = v as TicketType;
-                  setValue("ticketType", t);
-                  setPvType(t);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Classic">Classic</SelectItem>
-                  <SelectItem value="Diamond">VIP</SelectItem>
-                  <SelectItem value="Gold">VVIP</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="phone" className="flex items-center gap-1.5">
+                <Smartphone className="h-3.5 w-3.5" /> Phone (10 Digits)
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                {...register("phone")}
+                placeholder="Phone (10 Digits)"
+              />
+              {errors.phone && (
+                <p className="text-xs text-destructive">{errors.phone.message}</p>
+              )}
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex-1 space-y-2">
-                <Label>Gender</Label>
+            <div className="grid grid-cols-[1fr_1fr_1fr] gap-1">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <Tickets className="h-3.5 w-3.5" /> Type
+                </Label>
                 <Select
-                  defaultValue="Male"
+                  value={ticketTypeVal}
                   onValueChange={(v) => {
-                    const g = v as Gender;
+                    const t = (v ?? "Classic") as TicketType;
+                    setTicketTypeVal(t);
+                    setValue("ticketType", t);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {ticketTypeVal === "Diamond"
+                        ? "VIP"
+                        : ticketTypeVal === "Gold"
+                        ? "VVIP"
+                        : "Classic"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[120px]">
+                    <SelectItem value="Classic">Classic</SelectItem>
+                    <SelectItem value="Diamond">VIP</SelectItem>
+                    <SelectItem value="Gold">VVIP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <FaVenusMars className="text-xs" /> Gender
+                </Label>
+                <Select
+                  value={genderVal}
+                  onValueChange={(v) => {
+                    const g = (v ?? "Male") as Gender;
+                    setGenderVal(g);
                     setValue("gender", g);
-                    setPvGender(g);
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[120px]">
                     <SelectItem value="Male">Male</SelectItem>
                     <SelectItem value="Female">Female</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="age">Age</Label>
+
+              <div className="space-y-2">
+                <Label htmlFor="age" className="flex items-center gap-1">
+                  <CalendarDateIcon size={14} /> Age
+                </Label>
                 <Input
                   id="age"
                   type="number"
                   min={1}
                   {...register("age")}
-                  onChange={(e) => setPv((p) => ({ ...p, age: e.target.value }))}
                   placeholder="Age"
                 />
                 {errors.age && (
@@ -213,23 +245,12 @@ export default function TicketsPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone (10 Digits)</Label>
-              <Input
-                id="phone"
-                type="tel"
-                inputMode="numeric"
-                {...register("phone")}
-                onChange={(e) => setPv((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="Phone (10 Digits)"
-              />
-              {errors.phone && (
-                <p className="text-xs text-destructive">{errors.phone.message}</p>
-              )}
-            </div>
-
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <HugeiconsIcon icon={AddInvoiceIcon} size={16} className="mr-2" />
+              )}
               Generate Pass
             </Button>
           </form>
@@ -237,21 +258,29 @@ export default function TicketsPage() {
       </Card>
 
       <div className="flex flex-col gap-4">
-        <div ref={ticketRef}>
-          <TicketCard ticket={livePreview} eventName={settings.name || undefined} />
-        </div>
-        <Button
-          className="bg-[#25D366] text-white hover:bg-[#1faa54]"
-          disabled={isSharing || preview.id === "—"}
-          onClick={handleShare}
-        >
+        {preview.id !== "—" ? (
+          <>
+            <div className="mx-auto flex w-full max-w-[380px] justify-center">
+              <TicketCard ref={ticketRef} ticket={livePreview} eventName={settings.name || undefined} venue={settings.place || undefined} />
+            </div>
+            <Button
+              className="mx-auto w-full max-w-[380px] bg-[#25D366] text-white hover:bg-[#1faa54]"
+              disabled={isSharing}
+              onClick={handleShare}
+            >
           {isSharing ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <span className="mr-2">💬</span>
+            <HugeiconsIcon icon={WhatsappIcon} size={16} className="mr-2" primaryColor="currentColor" />
           )}
           Save & Share via WhatsApp
-        </Button>
+            </Button>
+          </>
+        ) : (
+          <div className="glass-panel flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
+            <span>Fill the form and click <span className="font-medium text-foreground">Generate Pass</span> to preview the ticket.</span>
+          </div>
+        )}
       </div>
     </div>
   );
