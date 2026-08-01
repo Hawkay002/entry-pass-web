@@ -1,0 +1,13 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "functions": {
+    "app/(app)/**": {
+      "maxDuration": 30
+    },
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  }
+}

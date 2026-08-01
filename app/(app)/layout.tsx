@@ -3,12 +3,16 @@
 // Also runs the auto-absent check server-side on every request.
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
 import { getAppUser } from "@/lib/firebase/server-auth";
 import { isAdmin } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { paths } from "@/lib/paths";
-import { logAction } from "@/lib/firebase/log";
+
+// Force dynamic rendering — this layout must run on every request,
+// not be cached at build time (needed for auto-absent + session checks).
+export const dynamic = "force-dynamic";
 
 export default async function AppLayout({
   children,
@@ -19,7 +23,7 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   // Auto-absent: check if deadline passed and mark coming-soon tickets.
-  // Runs server-side on EVERY page load within the app — no client timer needed.
+  // Runs directly via Admin SDK — no server action dependency.
   try {
     const db = getAdminDb();
     const settingsSnap = await db.doc(paths.settingsDoc).get();
@@ -28,7 +32,6 @@ export default async function AppLayout({
     if (deadline) {
       const deadlineMs = new Date(deadline).getTime();
       if (!isNaN(deadlineMs) && Date.now() > deadlineMs) {
-        // Deadline passed — mark all coming-soon as absent.
         const snap = await db
           .collection(paths.ticketsCollection)
           .where("status", "==", "coming-soon")
@@ -38,7 +41,7 @@ export default async function AppLayout({
           const batch = db.batch();
           snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
           await batch.commit();
-          console.log(`[auto-absent] Marked ${snap.size} ticket(s) as absent (deadline: ${deadline})`);
+          console.log(`[auto-absent] Marked ${snap.size} ticket(s) as absent`);
         }
       }
     }
