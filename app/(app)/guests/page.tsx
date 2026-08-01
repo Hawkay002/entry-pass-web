@@ -73,31 +73,16 @@ export default function GuestsPage() {
   const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
 
-  // Realtime auto-absent: a 10s timer re-evaluates whether the deadline has
-  // passed. When it crosses and there are coming-soon tickets, write them to
-  // absent. The tickets onSnapshot then fires with the new status — live,
-  // no manual refresh needed.
-  const [, forceTick] = useState(0);
+  // Auto-absent: call on mount + when ticket count changes.
+  // The server-side layout also runs this check, but this catches the case
+  // where you stay on the page while the deadline crosses.
   useEffect(() => {
-    const interval = setInterval(() => forceTick((n) => n + 1), 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const hasComingSoon = tickets.some((t) => t.status === "coming-soon");
-  const deadline = settings.deadline;
-  const deadlineMs = deadline ? new Date(deadline).getTime() : NaN;
-  const deadlinePassed = !isNaN(deadlineMs) && Date.now() > deadlineMs;
-
-  const absentTriggeredRef = useRef(false);
-  useEffect(() => {
-    if (!deadlinePassed || !hasComingSoon || absentTriggeredRef.current) return;
-    absentTriggeredRef.current = true;
     autoMarkAbsent().then((res) => {
       if (res.ok && res.count > 0) {
         toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
       }
     });
-  }, [deadlinePassed, hasComingSoon]);
+  }, [tickets.length]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

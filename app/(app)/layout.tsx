@@ -1,13 +1,14 @@
 // app/(app)/layout.tsx — server component. Reads the session cookie,
-// redirects to /login if absent, and renders the authenticated shell
-// (which includes the staff-side remote-lock listener).
-// Also runs the auto-absent check on every request (server-side, immediate).
+// redirects to /login if absent, and renders the authenticated shell.
+// Also runs the auto-absent check server-side on every request.
 
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getAppUser } from "@/lib/firebase/server-auth";
 import { isAdmin } from "@/lib/auth";
-import { autoMarkAbsent } from "@/app/actions/tickets";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { paths } from "@/lib/paths";
+import { logAction } from "@/lib/firebase/log";
 
 export default async function AppLayout({
   children,
@@ -17,9 +18,33 @@ export default async function AppLayout({
   const user = await getAppUser();
   if (!user) redirect("/login");
 
-  // Run auto-absent check server-side on every navigation within the app.
-  // If the deadline has passed, coming-soon tickets are marked absent immediately.
-  await autoMarkAbsent().catch(() => {});
+  // Auto-absent: check if deadline passed and mark coming-soon tickets.
+  // Runs server-side on EVERY page load within the app — no client timer needed.
+  try {
+    const db = getAdminDb();
+    const settingsSnap = await db.doc(paths.settingsDoc).get();
+    const deadline = settingsSnap.data()?.deadline as string | undefined;
+
+    if (deadline) {
+      const deadlineMs = new Date(deadline).getTime();
+      if (!isNaN(deadlineMs) && Date.now() > deadlineMs) {
+        // Deadline passed — mark all coming-soon as absent.
+        const snap = await db
+          .collection(paths.ticketsCollection)
+          .where("status", "==", "coming-soon")
+          .get();
+
+        if (!snap.empty) {
+          const batch = db.batch();
+          snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
+          await batch.commit();
+          console.log(`[auto-absent] Marked ${snap.size} ticket(s) as absent (deadline: ${deadline})`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[auto-absent] failed:", err);
+  }
 
   return (
     <AppShell
