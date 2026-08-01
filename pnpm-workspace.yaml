@@ -10,3 +10,5 @@ onlyBuiltDependencies:
   - "@firebase/util"
   - protobufjs
 verifyDepsBeforeRun: false
+overrides:
+  jose: 5.10.0
