@@ -3,6 +3,8 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import { LockedTab } from "@/components/layout/locked-tab";
+import { useLockedTabs } from "@/components/layout/locked-tabs-context";
 import { Loader2, Search, Trash2, Filter, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,7 +39,7 @@ import {
   type TicketTypeFilter,
   type GenderFilter,
 } from "@/lib/guest-list";
-import { deleteOneTicket } from "@/app/actions/tickets";
+import { deleteOneTicket, autoMarkAbsent } from "@/app/actions/tickets";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
 import type { Ticket, TicketStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -57,6 +59,7 @@ const TYPE_STYLES: Record<string, string> = {
 };
 
 export default function GuestsPage() {
+  const lockedTabs = useLockedTabs();
   const { tickets, loading } = useTickets();
   const [filters, setFilters] = useState<GuestListFilters>(DEFAULT_FILTERS);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -69,6 +72,32 @@ export default function GuestsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
+
+  // Realtime auto-absent: a 10s timer re-evaluates whether the deadline has
+  // passed. When it crosses and there are coming-soon tickets, write them to
+  // absent. The tickets onSnapshot then fires with the new status — live,
+  // no manual refresh needed.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceTick((n) => n + 1), 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hasComingSoon = tickets.some((t) => t.status === "coming-soon");
+  const deadline = settings.deadline;
+  const deadlineMs = deadline ? new Date(deadline).getTime() : NaN;
+  const deadlinePassed = !isNaN(deadlineMs) && Date.now() > deadlineMs;
+
+  const absentTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!deadlinePassed || !hasComingSoon || absentTriggeredRef.current) return;
+    absentTriggeredRef.current = true;
+    autoMarkAbsent().then((res) => {
+      if (res.ok && res.count > 0) {
+        toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
+      }
+    });
+  }, [deadlinePassed, hasComingSoon]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -140,6 +169,10 @@ export default function GuestsPage() {
     } else {
       toast.error("Delete failed");
     }
+  }
+
+  if (lockedTabs.includes("booked")) {
+    return <LockedTab tabName="Guest List" />;
   }
 
   return (

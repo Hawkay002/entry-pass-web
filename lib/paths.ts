@@ -11,6 +11,7 @@ export const paths = {
   settingsDoc: `${APP_COLLECTION_ROOT}/${SHARED_DATA_ID}/settings/config`,
   logsCollection: "activity_logs",
   usernamesCollection: "allowed_usernames",
+  rolesCollection: "roles",
   locksCollection: "global_locks",
   adminSecurityDoc: "admin_settings/security",
   communicationsCollection: "communications",

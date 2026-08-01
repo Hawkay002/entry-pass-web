@@ -12,6 +12,7 @@ import { useChat } from "@/hooks/use-chat";
 import { ChatDrawer } from "@/components/chat/chat-drawer";
 import { HelpTray } from "@/components/layout/help-tray";
 import { EasterEgg } from "@/components/layout/easter-egg";
+import { LockedTabsProvider } from "@/components/layout/locked-tabs-context";
 import type { LockMetadata, TabName } from "@/lib/types";
 import {
   Dialog,
@@ -78,10 +79,15 @@ export function AppShell({
           userEmail={userEmail}
           lockedTabs={lockedTabs}
           unreadCount={totalUnread}
-          onOpenNotifications={() => setChatOpen(true)}
-          onOpenChat={() => setChatOpen(true)}
+          onOpenNotifications={() => {}}
+          onOpenChat={() => {}}
+          hideActions
         />
-        <main className="mx-auto max-w-6xl p-6">{children}</main>
+        <main className="mx-auto max-w-6xl p-6">
+          <LockedTabsProvider lockedTabs={lockedTabs}>
+            {children}
+          </LockedTabsProvider>
+        </main>
       </div>
 
       {/* Lock popup (basic / maintenance / suspension) */}

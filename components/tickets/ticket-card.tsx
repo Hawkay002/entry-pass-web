@@ -78,7 +78,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="opacity-60">{label}</span>
-      <span className="font-medium">{value || "—"}</span>
+      <span className="text-right font-medium">{value || "—"}</span>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -43,9 +45,13 @@ export function TicketViewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-[calc(100%-1rem)] p-1 sm:max-w-[460px] sm:p-4">
+        <DialogHeader className="px-1 py-1 sm:px-0 sm:py-0">
+          <DialogTitle>Ticket Preview</DialogTitle>
+        </DialogHeader>
+
         {ticket && (
-          <div className="space-y-4">
+          <div className="space-y-1 px-1 py-1 sm:space-y-4 sm:px-0 sm:py-4">
             <div className="flex justify-center">
               <TicketCard ref={cardRef} ticket={ticket} eventName={eventName} venue={venue} />
             </div>

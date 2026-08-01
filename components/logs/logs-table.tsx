@@ -42,6 +42,20 @@ const ACTION_LABELS: Record<string, string> = {
   IMPORT_DATA: "Import Data",
 };
 
+const ACTION_COLORS: Record<string, string> = {
+  LOGIN: "bg-blue-500/20 text-blue-400",
+  TICKET_CREATE: "bg-success-green/20 text-success-green",
+  SCAN_ENTRY: "bg-accent-secondary/20 text-accent-secondary",
+  CONFIG_CHANGE: "bg-purple-500/20 text-purple-400",
+  HELP_CALL: "bg-amber-500/20 text-amber-400",
+  TICKET_DELETE: "bg-red-500/20 text-red-400",
+  FACTORY_RESET: "bg-red-700/20 text-red-500",
+  LOCK_ACTION: "bg-pink-500/20 text-pink-400",
+  LOG_DELETE: "bg-orange-500/20 text-orange-400",
+  EXPORT_DATA: "bg-teal-500/20 text-teal-400",
+  IMPORT_DATA: "bg-indigo-500/20 text-indigo-400",
+};
+
 const ACTION_FILTERS = [
   "LOGIN",
   "TICKET_CREATE",
@@ -120,9 +134,6 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
         <div className="flex gap-2">
           {selectionMode ? (
             <>
-              <span className="self-center text-sm text-accent-secondary">
-                ({selected.size} selected)
-              </span>
               <Button
                 size="sm"
                 variant="destructive"
@@ -189,9 +200,14 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
       </div>
 
       {selectionMode && (
-        <div className="flex items-center gap-3 rounded-lg bg-white/5 p-3">
-          <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
-          <span className="text-sm">Select All</span>
+        <div className="flex items-center justify-between rounded-lg bg-white/5 p-3">
+          <div className="flex items-center gap-3">
+            <Checkbox checked={allVisibleSelected} onCheckedChange={toggleSelectAll} />
+            <span className="text-sm">Select All</span>
+          </div>
+          <span className="text-sm text-accent-secondary">
+            ({selected.size} selected)
+          </span>
         </div>
       )}
 
@@ -234,7 +250,7 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="inline-block rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium">
+                    <span className={cn("inline-block rounded-full px-2 py-0.5 text-xs font-medium", ACTION_COLORS[l.action] ?? "bg-white/10 text-white")}>
                       {l.action}
                     </span>
                   </TableCell>

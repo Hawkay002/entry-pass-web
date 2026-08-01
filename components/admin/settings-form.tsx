@@ -4,13 +4,21 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSettings } from "@/hooks/use-settings";
-import { saveSettings } from "@/app/actions/admin";
+import { saveSettings, clearSettings } from "@/app/actions/admin";
 
 export function SettingsForm() {
   const { settings, loading } = useSettings();
@@ -19,6 +27,21 @@ export function SettingsForm() {
   const [deadline, setDeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+
+  async function handleClear() {
+    setClearOpen(false);
+    const res = await clearSettings();
+    if (res.ok) {
+      toast.success("Settings cleared");
+      setName("");
+      setPlace("");
+      setDeadline("");
+      setEdited(false);
+    } else {
+      toast.error("Failed to clear settings");
+    }
+  }
 
   // Seed local state once settings load.
   if (loading && name === "" && settings.name) {
@@ -85,7 +108,16 @@ export function SettingsForm() {
           Save Configuration
         </Button>
 
-        <div className="rounded-xl bg-black/30 p-4">
+        <div className="relative rounded-xl bg-black/30 p-4">
+          {(settings.name || settings.place || settings.deadline) && (
+            <button
+              onClick={() => setClearOpen(true)}
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-destructive transition-colors hover:bg-destructive/10"
+              title="Clear all settings"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
           <h4 className="mb-2 text-sm font-semibold text-white">Active Settings</h4>
           <p className="text-sm text-muted-foreground">
             <strong>Event:</strong>{" "}
@@ -105,6 +137,27 @@ export function SettingsForm() {
           </p>
         </div>
       </CardContent>
+
+      <Dialog open={clearOpen} onOpenChange={setClearOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear Settings?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove the event name, venue, and deadline
+              from the database.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setClearOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleClear}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Clear All
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

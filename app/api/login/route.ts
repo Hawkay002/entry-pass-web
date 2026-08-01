@@ -5,10 +5,17 @@
 // reliable than next-firebase-auth-edge's wrapper). Cookie verification on
 // subsequent requests still uses next-firebase-auth-edge in proxy.ts +
 // server-auth.ts.
+//
+// Also auto-assigns the admin role claim to designated admin emails on first
+// login (so they don't need a pre-existing Firebase Auth account).
 
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { authConfig } from "@/lib/env";
+import { paths } from "@/lib/paths";
+
+/** Admin emails that auto-receive the admin role claim on login. */
+const ADMIN_EMAILS = ["admin.test@gmail.com", "shovith2@gmail.com"];
 
 export async function POST(req: NextRequest) {
   let idToken: string;
@@ -30,9 +37,43 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const auth = getAdminAuth();
+    // Verify the token and get user info.
+    const decoded = await auth.verifyIdToken(idToken);
+    const email = decoded.email ?? "";
+
+    // Auto-assign admin role for designated emails.
+    if (ADMIN_EMAILS.includes(email.toLowerCase())) {
+      const user = await auth.getUser(decoded.uid);
+      if (!user.customClaims?.role) {
+        await auth.setCustomUserClaims(decoded.uid, {
+          ...user.customClaims,
+          role: "admin",
+        });
+      }
+      // Always treat designated admin emails as admin, even on first login
+      // before the claim propagates to a fresh token.
+    } else {
+      // Staff: verify email exists in the roles collection.
+      const rolesSnap = await getAdminDb().collection(paths.rolesCollection).get();
+      const allStaff = rolesSnap.docs.flatMap((d) => {
+        const data = d.data();
+        return (data.staff as { email: string }[]) ?? [];
+      });
+      const found = allStaff.some(
+        (s) => s.email.toLowerCase() === email.toLowerCase()
+      );
+      if (!found) {
+        return NextResponse.json(
+          { ok: false, error: "This email is not authorized. Contact admin." },
+          { status: 403 }
+        );
+      }
+    }
+
     // Mint a long-lived session cookie (14 days) via firebase-admin.
     const expiresInMs = 1000 * 60 * 60 * 24 * 14;
-    const sessionCookie = await getAdminAuth().createSessionCookie(idToken, {
+    const sessionCookie = await auth.createSessionCookie(idToken, {
       expiresIn: expiresInMs,
     });
 

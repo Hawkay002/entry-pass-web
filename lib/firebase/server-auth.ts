@@ -1,26 +1,25 @@
 // lib/firebase/server-auth.ts — resolve the session cookie into an AppUser.
 //
 // Uses firebase-admin's verifySessionCookie (matches the cookie created in
-// /api/login via firebase-admin). Custom claims (role, username) are read
-// from the decoded token.
+// /api/login via firebase-admin). Custom claims (role) are read from the
+// decoded token. Staff usernames are resolved from the roles collection.
 
 import { cookies } from "next/headers";
-import { getAdminAuth } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { authConfig } from "@/lib/env";
 import { paths } from "@/lib/paths";
-import { getAdminDb } from "@/lib/firebase/admin";
-import { ROLE_CLAIM, USERNAME_CLAIM, type AppUser } from "@/lib/auth";
+import { ROLE_CLAIM, type AppUser } from "@/lib/auth";
 import type { Role } from "@/lib/types";
 
 function decodeRole(claim: unknown): Role {
-  const roles: Role[] = [
-    "admin",
-    "event_manager",
-    "registration_desk",
-    "security_head",
-  ];
-  return roles.includes(claim as Role) ? (claim as Role) : "event_manager";
+  if (claim === "admin") return "admin";
+  // Staff roles are dynamic — return the claim or a default.
+  return (claim as Role) ?? "staff";
 }
+
+// Same list as the login route — ensures designated admin emails always
+// get admin access even before their custom claim propagates.
+const ADMIN_EMAILS = ["admin.test@gmail.com", "shovith2@gmail.com"];
 
 export async function getAppUser(): Promise<AppUser | null> {
   const cookieStore = await cookies();
@@ -36,23 +35,45 @@ export async function getAppUser(): Promise<AppUser | null> {
   }
 
   const role = decodeRole(decoded[ROLE_CLAIM]);
-  let username = (decoded[USERNAME_CLAIM] as string | undefined) ?? "";
+  const email = decoded.email ?? "";
 
-  if (role === "admin") {
-    username = "ADMIN";
-  } else if (username) {
-    // Staff: confirm the username profile still exists and is bound to this email.
+  // Override: designated admin emails always get admin, even if the claim
+  // hasn't propagated to the session cookie yet (first login case).
+  const isAdmin = role === "admin" || ADMIN_EMAILS.includes(email.toLowerCase());
+
+  let username = "ADMIN";
+
+  if (!isAdmin) {
+    // Staff: find their name from the roles collection by email.
     try {
-      const snap = await getAdminDb()
-        .collection(paths.usernamesCollection)
-        .doc(username)
-        .get();
-      const data = snap.data();
-      if (!data || data.email !== decoded.email) {
-        username = "";
+      const rolesSnap = await getAdminDb().collection(paths.rolesCollection).get();
+      let foundName = "";
+      let foundRole: Role = "staff";
+      rolesSnap.docs.forEach((d) => {
+        const data = d.data();
+        const staff = (data.staff as { name: string; email: string }[]) ?? [];
+        const match = staff.find(
+          (s) => s.email.toLowerCase() === email.toLowerCase()
+        );
+        if (match) {
+          foundName = match.name;
+          foundRole = d.id; // role name = doc id
+        }
+      });
+      if (foundName) {
+        username = foundName;
+      } else {
+        username = email;
       }
+      // Use the role from the roles collection.
+      return {
+        uid: decoded.uid,
+        email: decoded.email ?? null,
+        username,
+        role: foundRole,
+      };
     } catch {
-      username = "";
+      username = email;
     }
   }
 
@@ -60,6 +81,6 @@ export async function getAppUser(): Promise<AppUser | null> {
     uid: decoded.uid,
     email: decoded.email ?? null,
     username,
-    role,
+    role: isAdmin ? "admin" : role,
   };
 }

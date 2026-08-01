@@ -5,11 +5,21 @@ export type TicketType = "Classic" | "Diamond" | "Gold";
 export type TicketStatus = "coming-soon" | "arrived" | "absent";
 export type Gender = "Male" | "Female" | "Other";
 
-export type Role =
-  | "admin"
-  | "event_manager"
-  | "registration_desk"
-  | "security_head";
+export type Role = "admin" | string; // admin is fixed; others are dynamic from roles collection
+
+/** A staff member within a role. */
+export interface StaffMember {
+  name: string;
+  email: string;
+}
+
+/** Path: roles/{roleName} — dynamically managed by admin. */
+export interface StaffRole {
+  id: string;        // document id = role name (e.g. "Event Manager")
+  name: string;      // display name
+  staff: StaffMember[];
+  createdAt: number;
+}
 
 /** Path: ticket_events_data/shared_event_db/tickets/{autoId} */
 export interface Ticket {
@@ -109,7 +119,7 @@ export interface TypingStatus {
 }
 
 /** Tabs that can be remotely locked by an admin. */
-export type TabName = "create" | "booked" | "scanner";
+export type TabName = "create" | "booked" | "scanner" | "settings";
 
 /** Admin lock reason radio option metadata. */
 export interface LockReasonOption {
@@ -136,4 +146,5 @@ export const TAB_LABELS: Record<TabName, string> = {
   create: "Issue Ticket",
   booked: "Guest List",
   scanner: "Scanner",
+  settings: "Configuration",
 };

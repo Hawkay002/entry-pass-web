@@ -6,6 +6,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { LockedTab } from "@/components/layout/locked-tab";
+import { useLockedTabs } from "@/components/layout/locked-tabs-context";
 import jsQR from "jsqr";
 import {
   Camera,
@@ -37,19 +39,29 @@ interface ScanCtx {
 // Module-scope frame loop. Takes explicit deps via ctx so there are no
 // closures over component state and no ref writes during render — satisfying
 // the strict react-hooks rules.
+const scanCanvas = document.createElement("canvas");
+const scanCtx2d = scanCanvas.getContext("2d", { willReadFrequently: true });
+// Cap the decode resolution — jsQR is much faster on smaller images, and
+// 480px is plenty for QR codes. Aspect ratio preserved from the video.
+const MAX_SCAN_DIM = 480;
+
 function frameLoop(ctx: ScanCtx) {
   const video = ctx.video;
   if (!video || !ctx.stream) return;
 
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    const canvas = document.createElement("canvas");
-    const cv = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    cv?.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = cv?.getImageData(0, 0, canvas.width, canvas.height);
-    if (imageData) {
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+  if (video.readyState === video.HAVE_ENOUGH_DATA && scanCtx2d) {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (vw > 0 && vh > 0) {
+      // Downscale to max 480px on the longest side for faster decoding.
+      const scale = Math.min(1, MAX_SCAN_DIM / Math.max(vw, vh));
+      const sw = Math.round(vw * scale);
+      const sh = Math.round(vh * scale);
+      scanCanvas.width = sw;
+      scanCanvas.height = sh;
+      scanCtx2d.drawImage(video, 0, 0, sw, sh);
+      const imageData = scanCtx2d.getImageData(0, 0, sw, sh);
+      const code = jsQR(imageData.data, sw, sh, {
         inversionAttempts: "dontInvert",
       });
       if (code && !ctx.cooldown) {
@@ -57,7 +69,7 @@ function frameLoop(ctx: ScanCtx) {
         ctx.onCode(code.data);
         setTimeout(() => {
           ctx.cooldown = false;
-        }, 4000);
+        }, 3000);
       }
     }
   }
@@ -67,6 +79,7 @@ function frameLoop(ctx: ScanCtx) {
 }
 
 export default function ScannerPage() {
+  const lockedTabs = useLockedTabs();
   const videoRef = useRef<HTMLVideoElement>(null);
   const ctxRef = useRef<ScanCtx>({
     video: null,
@@ -153,10 +166,14 @@ export default function ScannerPage() {
     };
   }, []);
 
+  if (lockedTabs.includes("scanner")) {
+    return <LockedTab tabName="Scanner" />;
+  }
+
   return (
     <div className="glass-panel mx-auto max-w-lg p-6 text-center">
       <h2 className="mb-4 text-lg font-semibold">Entry Validation</h2>
-      <div className="relative mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-black">
+      <div className="relative mx-auto aspect-square w-full max-w-[200px] overflow-hidden rounded-2xl border border-white/10 bg-black">
         <video ref={videoRef} className="h-full w-full object-cover" muted />
         {!active && (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">

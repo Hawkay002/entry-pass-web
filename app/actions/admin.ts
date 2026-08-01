@@ -17,8 +17,9 @@ import type {
   StaffUser,
 } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { fetchLogsFromRedis, deleteLogsFromRedis } from "@/lib/redis-log";
 
-// ---------------- Activity Logs ----------------
+// ---------------- Activity Logs (Redis) ----------------
 
 export async function fetchActivityLogs(): Promise<
   { ok: true; logs: ActivityLog[] } | { ok: false; error: string }
@@ -28,23 +29,15 @@ export async function fetchActivityLogs(): Promise<
   if (user.role !== "admin")
     return { ok: false, error: "Admin role required." };
 
-  const snap = await getAdminDb()
-    .collection(paths.logsCollection)
-    .orderBy("timestamp", "desc")
-    .limit(500)
-    .get();
-
-  const logs: ActivityLog[] = snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      timestamp: Number(data.timestamp ?? 0),
-      userEmail: String(data.userEmail ?? ""),
-      username: String(data.username ?? ""),
-      action: data.action as ActivityLog["action"],
-      details: String(data.details ?? ""),
-    };
-  });
+  const entries = await fetchLogsFromRedis(500);
+  const logs: ActivityLog[] = entries.map((e) => ({
+    id: e.id,
+    timestamp: e.timestamp,
+    userEmail: e.userEmail,
+    username: e.username,
+    action: e.action as ActivityLog["action"],
+    details: e.details,
+  }));
 
   return { ok: true, logs };
 }
@@ -55,12 +48,7 @@ export async function deleteLogs(
   const user = await getAppUser();
   requireAdmin(user);
 
-  const db = getAdminDb();
-  let count = 0;
-  for (const id of ids) {
-    await db.collection(paths.logsCollection).doc(id).delete();
-    count++;
-  }
+  const count = await deleteLogsFromRedis(ids);
   await logAction(user, "LOG_DELETE", `Deleted ${count} log(s).`);
   revalidatePath("/logs");
   return { ok: true, count };
@@ -90,6 +78,20 @@ export async function saveSettings(
     "CONFIG_CHANGE",
     `Settings updated: "${settings.name}" at ${settings.place}`
   );
+  return { ok: true };
+}
+
+/** Clear all event settings (name, place, deadline) from the database. */
+export async function clearSettings(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  await getAdminDb().doc(paths.settingsDoc).set(
+    { name: "", place: "", deadline: "" },
+    { merge: true }
+  );
+
+  await logAction(user, "CONFIG_CHANGE", "Cleared all event settings.");
   return { ok: true };
 }
 
@@ -185,7 +187,7 @@ export async function applyRemoteLocks(input: {
   const now = Date.now();
   const meta = { type: input.reason, duration: input.duration, updatedAt: now };
 
-  // Write per-username locks via merge so other users on the same email are untouched.
+  // Write per-username locks via update() for dot-notation path support.
   const update: Record<string, unknown> = { updatedAt: now };
   for (const username of input.usernames) {
     update[`userSpecificLocks.${username}`] = input.lockedTabs;
@@ -202,7 +204,8 @@ export async function applyRemoteLocks(input: {
       updatedAt: now,
     });
   } else {
-    await ref.set(update, { merge: true });
+    // Use update() — it correctly interprets dot-notation as nested paths.
+    await ref.update(update);
   }
 
   await logAction(
@@ -211,6 +214,137 @@ export async function applyRemoteLocks(input: {
     `Locked tabs (${input.lockedTabs.join(", ") || "none"}) for [${input.usernames.join(", ")}]. Reason: ${input.reason.toUpperCase()}`
   );
   return { ok: true };
+}
+
+/** Unlock staff by deleting their lock entries from the global_locks doc. */
+export async function unlockStaff(input: {
+  targetEmail: string;
+  username: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const user = await getAppUser();
+    if (!user || user.role !== "admin") {
+      console.log("[unlockStaff] rejected: role=", user?.role, "email=", user?.email);
+      return { ok: false, error: "Admin role required." };
+    }
+
+    const ref = getAdminDb().collection(paths.locksCollection).doc(input.targetEmail);
+
+    const snap = await ref.get();
+    if (!snap.exists) {
+      console.log("[unlockStaff] doc not found:", input.targetEmail);
+      return { ok: true };
+    }
+
+    const { FieldValue } = await import("firebase-admin/firestore");
+    await ref.update({
+      [`userSpecificLocks.${input.username}`]: FieldValue.delete(),
+      [`lockMetadata.${input.username}`]: FieldValue.delete(),
+      updatedAt: Date.now(),
+    });
+    console.log("[unlockStaff] success:", input.targetEmail, input.username);
+
+    await logAction(
+      user,
+      "LOCK_ACTION",
+      `Unlocked all tabs for ${input.username} (${input.targetEmail}).`
+    );
+    return { ok: true };
+  } catch (err) {
+    console.error("[unlockStaff] error:", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+/** Fetch maintenance metadata (duration + endsAt) from any staff's lock doc. */
+export async function fetchMaintenanceInfo(): Promise<
+  { ok: true; active: boolean; duration: string | null; updatedAt: number | null } | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const snap = await getAdminDb().collection(paths.locksCollection).get();
+  let active = false;
+  let duration: string | null = null;
+  let updatedAt: number | null = null;
+
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const meta = data.lockMetadata as Record<string, { type?: string; duration?: string; updatedAt?: number }> | undefined;
+    if (meta) {
+      for (const [, m] of Object.entries(meta)) {
+        if (m?.type === "maintenance") {
+          active = true;
+          if (m.duration && m.duration !== "Unknown") duration = m.duration;
+          if (m.updatedAt) updatedAt = m.updatedAt;
+        }
+      }
+    }
+  });
+
+  return { ok: true, active, duration, updatedAt };
+}
+
+/** Check if maintenance time is over and auto-end if so. */
+export async function checkAndEndMaintenance(): Promise<
+  { ok: true; ended: boolean } | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const snap = await getAdminDb().collection(paths.locksCollection).get();
+  const now = Date.now();
+  let maintenanceFound = false;
+  let isOver = false;
+
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const meta = data.lockMetadata as Record<string, { type?: string; duration?: string; updatedAt?: number }> | undefined;
+    if (meta) {
+      for (const [, m] of Object.entries(meta)) {
+        if (m?.type === "maintenance") {
+          maintenanceFound = true;
+          // Parse duration string like "2 hr 30 min"
+          const dur = m.duration ?? "";
+          if (dur && dur !== "Unknown" && m.updatedAt) {
+            const hrMatch = dur.match(/(\d+)\s*hr/);
+            const minMatch = dur.match(/(\d+)\s*min/);
+            const hrs = hrMatch ? Number(hrMatch[1]) : 0;
+            const mins = minMatch ? Number(minMatch[1]) : 0;
+            const durationMs = (hrs * 60 + mins) * 60 * 1000;
+            if (now > m.updatedAt + durationMs) {
+              isOver = true;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (maintenanceFound && isOver) {
+    // Auto-unlock all maintenance locks
+    const { FieldValue } = await import("firebase-admin/firestore");
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const meta = data.lockMetadata as Record<string, { type?: string }> | undefined;
+      if (meta) {
+        const update: Record<string, unknown> = { updatedAt: now };
+        for (const [username, m] of Object.entries(meta)) {
+          if (m?.type === "maintenance") {
+            update[`userSpecificLocks.${username}`] = FieldValue.delete();
+            update[`lockMetadata.${username}`] = FieldValue.delete();
+          }
+        }
+        if (Object.keys(update).length > 1) {
+          await doc.ref.update(update);
+        }
+      }
+    }
+    await logAction(user, "LOCK_ACTION", "Maintenance auto-ended (duration elapsed).");
+    return { ok: true, ended: true };
+  }
+
+  return { ok: true, ended: false };
 }
 
 // ---------------- Factory Reset ----------------
@@ -264,4 +398,35 @@ export async function factoryReset(): Promise<
   revalidatePath("/settings");
   revalidatePath("/logs");
   return { ok: true };
+}
+
+/** Fetch all global_locks (admin only). Returns email → lockedTabs array map. */
+export async function fetchAllLocks(): Promise<
+  { ok: true; map: Record<string, string[]> } | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const snap = await getAdminDb().collection(paths.locksCollection).get();
+  const map: Record<string, string[]> = {};
+
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    const email = d.id.toLowerCase();
+    const userLocks = data.userSpecificLocks as Record<string, string[]> | undefined;
+    if (userLocks) {
+      const allTabs = new Set<string>();
+      Object.values(userLocks).forEach((tabs) => {
+        if (Array.isArray(tabs)) tabs.forEach((t) => allTabs.add(t));
+      });
+      if (allTabs.size > 0) {
+        map[email] = [...allTabs];
+      }
+    }
+    if (data.lockedTabs && Array.isArray(data.lockedTabs) && data.lockedTabs.length > 0) {
+      map[email] = data.lockedTabs;
+    }
+  });
+
+  return { ok: true, map };
 }

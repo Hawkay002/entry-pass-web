@@ -127,29 +127,43 @@ function ImportModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
+    setParsed([]);
     try {
       const records = await parseImportFile(file);
+      if (records.length === 0) {
+        toast.error("No valid rows found", { description: "Make sure the file has name and phone columns." });
+        return;
+      }
       setParsed(records);
+      toast.success(`Found ${records.length} records`);
     } catch (err) {
       toast.error("Parse failed", { description: (err as Error).message });
     }
   }
 
   async function handleImport() {
-    setImporting(true);
-    const res = await importTickets(parsed, existingPhones);
-    setImporting(false);
-    if (res.ok) {
-      toast.success(
-        `Imported ${res.imported} guests (${res.duplicates} duplicates skipped)`
-      );
-      onOpenChange(false);
-      setParsed([]);
-      setFileName("");
-      if (fileRef.current) fileRef.current.value = "";
-    } else {
-      toast.error("Import failed", { description: res.error });
+    if (parsed.length === 0) {
+      toast.error("No data to import", { description: "Select a file first." });
+      return;
     }
+    setImporting(true);
+    try {
+      const res = await importTickets(parsed, existingPhones);
+      if (res.ok) {
+        toast.success(
+          `Imported ${res.imported} guests (${res.duplicates} duplicates skipped)`
+        );
+        onOpenChange(false);
+        setParsed([]);
+        setFileName("");
+        if (fileRef.current) fileRef.current.value = "";
+      } else {
+        toast.error("Import failed", { description: res.error });
+      }
+    } catch (err) {
+      toast.error("Import failed", { description: (err as Error).message });
+    }
+    setImporting(false);
   }
 
   return (
@@ -158,7 +172,7 @@ function ImportModal({
         <DialogHeader>
           <DialogTitle>Import Guests</DialogTitle>
           <DialogDescription>
-            Upload a file to bulk import tickets. Supported: CSV, JSON, TXT, XLSX.
+            Upload a file to bulk import tickets. Supported: CSV, JSON, XLSX.
             Duplicates are skipped based on phone number.
           </DialogDescription>
         </DialogHeader>
@@ -166,9 +180,9 @@ function ImportModal({
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,.json,.txt,.xlsx"
+            accept=".csv,text/csv,application/vnd.ms-excel,.json,application/json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={handleFile}
-            className="hidden"
+            className="absolute h-0 w-0 opacity-0"
           />
           <Button
             variant="outline"

@@ -18,6 +18,7 @@ export function AppHeader({
   unreadCount = 0,
   onOpenNotifications,
   onOpenChat,
+  hideActions = false,
 }: {
   isAdmin: boolean;
   userEmail: string;
@@ -25,6 +26,7 @@ export function AppHeader({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   onOpenChat?: () => void;
+  hideActions?: boolean;
 }) {
   const router = useRouter();
 
@@ -90,8 +92,8 @@ export function AppHeader({
             Ticketing<span className="font-semibold">System</span>.
           </h1>
           <div className="flex w-16 shrink-0 items-center justify-end gap-1">
-            {bell}
-            {chat}
+            {!hideActions && bell}
+            {!hideActions && chat}
           </div>
         </div>
         {/* Account + signout wrapper, centered */}
@@ -118,8 +120,8 @@ export function AppHeader({
           Ticketing<span className="font-semibold">System</span>.
         </h1>
         <div className="flex items-center gap-2">
-          {bell}
-          {chat}
+          {!hideActions && bell}
+          {!hideActions && chat}
           {accountInline}
           {signOutBtn}
         </div>

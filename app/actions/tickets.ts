@@ -142,3 +142,46 @@ export async function deleteOneTicket(
   await getAdminDb().collection(paths.ticketsCollection).doc(id).delete();
   return { ok: true };
 }
+
+/**
+ * Auto-absent: if the deadline has passed, mark all "coming-soon" tickets
+ * as "absent". Mirrors the original performSync logic (script.js:1525-1539).
+ * Returns the count of tickets marked absent.
+ */
+export async function autoMarkAbsent(): Promise<
+  { ok: true; count: number; deadline: string | null } | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const db = getAdminDb();
+
+  // Read the deadline from settings.
+  const settingsSnap = await db.doc(paths.settingsDoc).get();
+  const settingsData = settingsSnap.data();
+  const deadline = settingsData?.deadline as string | undefined;
+
+  if (!deadline) return { ok: true, count: 0, deadline: null };
+
+  const deadlineMs = new Date(deadline).getTime();
+  if (isNaN(deadlineMs)) return { ok: true, count: 0, deadline };
+
+  if (Date.now() <= deadlineMs) {
+    return { ok: true, count: 0, deadline };
+  }
+
+  // Deadline has passed — mark all coming-soon tickets as absent.
+  const snap = await db
+    .collection(paths.ticketsCollection)
+    .where("status", "==", "coming-soon")
+    .get();
+
+  if (snap.empty) return { ok: true, count: 0, deadline };
+
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
+  await batch.commit();
+
+  revalidatePath("/guests");
+  return { ok: true, count: snap.size, deadline };
+}

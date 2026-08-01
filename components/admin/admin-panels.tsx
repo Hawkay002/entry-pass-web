@@ -1,12 +1,12 @@
-// components/admin/admin-panels.tsx — admin-only section: Remote Lock,
-// Staff management, and Factory Reset. Admin role is enforced server-side
-// by the page; this component assumes admin.
+// components/admin/admin-panels.tsx — admin-only section: Role Management,
+// Remote Device Management (role cards → staff modal → lock flow),
+// and Factory Reset.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, UserPlus, Lock } from "lucide-react";
+import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,76 +28,487 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  fetchStaffUsers,
-  createStaffUser,
-  deleteStaffUser,
-  factoryReset,
-  applyRemoteLocks,
-} from "@/app/actions/admin";
-import type { LockReasonType, Role, StaffUser, TabName } from "@/lib/types";
+  fetchRoles,
+  createRole,
+  addStaffToRole,
+  removeStaffFromRole,
+  deleteRole,
+} from "@/app/actions/roles";
+import { applyRemoteLocks, factoryReset, fetchAllLocks, fetchMaintenanceInfo, checkAndEndMaintenance, unlockStaff } from "@/app/actions/admin";
+import { useRoles } from "@/hooks/use-roles";
+import type { LockReasonType, StaffMember, StaffRole, TabName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MANAGED_EMAILS = [
-  "eveman.test@gmail.com",
-  "regdesk.test@gmail.com",
-  "sechead.test@gmail.com",
-];
-const ROLES: Role[] = [
-  "event_manager",
-  "registration_desk",
-  "security_head",
-];
+/** Fetch all global_locks via server action (admin can read all via Admin SDK).
+ *  Returns a map of email → lockedTabs array. Polled every 5s for realtime.
+ */
+function useLockStatus() {
+  const [lockMap, setLockMap] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const res = await fetchAllLocks();
+        if (active && res.ok) {
+          setLockMap(res.map);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  return lockMap;
+}
+
 const LOCKABLE_TABS: { value: TabName; label: string }[] = [
   { value: "create", label: "Issue Ticket Tab" },
   { value: "booked", label: "Guest List Tab" },
   { value: "scanner", label: "Scanner Tab" },
+  { value: "settings", label: "Configuration Tab" },
 ];
 
 export function AdminPanels() {
   return (
     <div className="space-y-10 border-t border-white/5 pt-8">
-      <RemoteLockPanel />
-      <StaffManagementPanel />
+      <MaintenancePanel />
+      <RoleManagementPanel />
+      <RemoteDeviceManagement />
       <FactoryResetPanel />
     </div>
   );
 }
 
-// ============== Remote Lock ==============
+// ============== Maintenance Mode (locks ALL roles) ==============
 
-function RemoteLockPanel() {
-  const [targetEmail, setTargetEmail] = useState<string | null>(null);
-  const [users, setUsers] = useState<StaffUser[]>([]);
-  const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(new Set());
-  const [lockedTabs, setLockedTabs] = useState<Set<TabName>>(new Set());
-  const [reason, setReason] = useState<LockReasonType>("basic");
-  const [maintHrs, setMaintHrs] = useState("");
-  const [maintMins, setMaintMins] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+function MaintenancePanel() {
+  const { roles } = useRoles();
+  const [open, setOpen] = useState(false);
+  const [hrs, setHrs] = useState("");
+  const [mins, setMins] = useState("");
   const [applying, setApplying] = useState(false);
+  const [maintInfo, setMaintInfo] = useState<{ active: boolean; duration: string | null }>({ active: false, duration: null });
 
-  async function selectEmail(email: string) {
-    setTargetEmail(email);
-    setSelectedUsernames(new Set());
-    setLockedTabs(new Set());
-    setReason("basic");
-    const res = await fetchStaffUsers();
-    if (res.ok) {
-      setUsers(res.users.filter((u) => u.email === email));
+  // Poll maintenance status every 5s + auto-end if duration elapsed
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      const res = await fetchMaintenanceInfo();
+      if (active && res.ok) {
+        setMaintInfo({ active: res.active, duration: res.duration });
+        if (res.active) {
+          const endRes = await checkAndEndMaintenance();
+          if (active && endRes.ok && endRes.ended) {
+            toast.success("Maintenance time over — all staff unlocked automatically");
+          }
+        }
+      }
+    }
+    load();
+    const interval = setInterval(load, 5000);
+    return () => { active = false; clearInterval(interval); };
+  }, []);
+
+  async function startMaintenance() {
+    setApplying(true);
+    const h = Number(hrs) || 0;
+    const m = Number(mins) || 0;
+    let duration = "Unknown";
+    if (h > 0 || m > 0) {
+      duration = "";
+      if (h > 0) duration += `${h} hr `;
+      if (m > 0) duration += `${m} min`;
+      duration = duration.trim();
+    }
+
+    // Lock ALL tabs for ALL staff across ALL roles
+    for (const role of roles) {
+      for (const staff of role.staff) {
+        await applyRemoteLocks({
+          targetEmail: staff.email,
+          usernames: [staff.name],
+          lockedTabs: ["create", "booked", "scanner", "settings"],
+          reason: "maintenance",
+          duration,
+        });
+      }
+    }
+
+    setApplying(false);
+    setOpen(false);
+    toast.success(`Maintenance mode activated for all staff (${roles.reduce((n, r) => n + r.staff.length, 0)} total)`);
+  }
+
+  /** Auto-end maintenance if the duration has elapsed. Called from the poll. */
+  async function autoEndMaintenanceIfOver() {
+    if (!maintInfo.active || applying) return;
+    const res = await checkAndEndMaintenance();
+    if (res.ok && res.ended) {
+      toast.success("Maintenance time over — all staff unlocked automatically");
     }
   }
 
-  function toggleUsername(u: string) {
-    setSelectedUsernames((prev) => {
+  async function endMaintenance() {
+    setApplying(true);
+    // Unlock ALL staff across ALL roles
+    for (const role of roles) {
+      for (const staff of role.staff) {
+        await unlockStaff({ targetEmail: staff.email, username: staff.name });
+      }
+    }
+    setApplying(false);
+    toast.success("Maintenance mode ended — all staff unlocked");
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Wrench className="h-5 w-5 text-amber-500" />
+        <h3 className="text-lg font-semibold">Maintenance Mode</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Locks all tabs for all staff across all roles simultaneously.
+      </p>
+
+      {maintInfo.active && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="text-sm text-amber-500">
+            Maintenance Active
+            {maintInfo.duration && maintInfo.duration !== "Unknown" && (
+              <span className="ml-1 text-muted-foreground">— Est. {maintInfo.duration}</span>
+            )}
+          </span>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+          onClick={() => setOpen(true)}
+        >
+          <Wrench className="mr-2 h-4 w-4" />
+          Start Maintenance
+        </Button>
+        <Button
+          variant="outline"
+          className="border-success-green text-success-green hover:bg-success-green/10"
+          disabled={applying}
+          onClick={endMaintenance}
+        >
+          {applying ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LockOpen className="mr-2 h-4 w-4" />
+          )}
+          End Maintenance
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start Maintenance Mode</DialogTitle>
+            <DialogDescription>
+              This will lock ALL tabs for ALL staff ({roles.reduce((n, r) => n + r.staff.length, 0)} members).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Estimated Duration (optional)</Label>
+              <div className="mt-2 flex gap-3">
+                <Input type="number" min={0} placeholder="Hrs" value={hrs} onChange={(e) => setHrs(e.target.value)} />
+                <Input type="number" min={0} placeholder="Mins" value={mins} onChange={(e) => setMins(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
+              disabled={applying}
+              onClick={startMaintenance}
+            >
+              {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Wrench className="mr-2 h-4 w-4" />
+              Activate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="mt-8 border-t border-white/10" />
+    </div>
+  );
+}
+
+// ============== Role Management ==============
+
+function RoleManagementPanel() {
+  const { roles, loading } = useRoles();
+  const [newRoleName, setNewRoleName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  // Add-staff dialog state
+  const [addStaffOpen, setAddStaffOpen] = useState<string | null>(null); // roleId
+  const [staffName, setStaffName] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
+  const [addingStaff, setAddingStaff] = useState(false);
+  const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null);
+
+  async function handleCreateRole() {
+    if (!newRoleName.trim()) return;
+    setCreating(true);
+    const res = await createRole(newRoleName);
+    setCreating(false);
+    if (res.ok) {
+      toast.success(`Role "${newRoleName}" created`);
+      setNewRoleName("");
+    } else {
+      toast.error("Create failed", { description: res.error });
+    }
+  }
+
+  async function handleAddStaff() {
+    if (!addStaffOpen || !staffName.trim() || !staffEmail.trim()) return;
+    setAddingStaff(true);
+    const res = await addStaffToRole(addStaffOpen, staffName, staffEmail);
+    setAddingStaff(false);
+    if (res.ok) {
+      toast.success("Staff member added");
+      setStaffName("");
+      setStaffEmail("");
+    } else {
+      toast.error("Add failed", { description: res.error });
+    }
+  }
+
+  async function handleRemoveStaff(roleId: string, email: string) {
+    const res = await removeStaffFromRole(roleId, email);
+    if (res.ok) toast.success("Staff removed");
+    else toast.error("Remove failed", { description: res.error });
+  }
+
+  async function handleDeleteRole(roleId: string) {
+    const res = await deleteRole(roleId);
+    if (res.ok) toast.success(`Role "${roleId}" deleted`);
+    else toast.error("Delete failed", { description: res.error });
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Lock className="h-5 w-5 text-accent-secondary" />
+        <h3 className="text-lg font-semibold">Role Management</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Create roles and add staff members. Staff log in with Google using their email.
+      </p>
+
+      {/* Create role */}
+      <div className="mb-4 flex gap-2">
+        <Input
+          placeholder="Role name (e.g. Event Manager)"
+          value={newRoleName}
+          onChange={(e) => setNewRoleName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCreateRole()}
+        />
+        <Button onClick={handleCreateRole} disabled={creating || !newRoleName.trim()}>
+          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      {/* Role list */}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : roles.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No roles yet. Create one above.</p>
+      ) : (
+        <div className="space-y-3">
+          {roles.map((role) => (
+            <div key={role.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="font-medium">{role.name} ({role.staff.length})</h4>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAddStaffOpen(role.id);
+                      setStaffName("");
+                      setStaffEmail("");
+                    }}
+                  >
+                    <UserPlus className="mr-1 h-4 w-4" /> Add Staff
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    onClick={() => setDeleteRoleConfirm(role.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {role.staff.length > 0 && (
+                <div className="space-y-1">
+                  {role.staff.map((s) => (
+                    <div
+                      key={s.email}
+                      className="flex items-center justify-between rounded-lg bg-black/30 px-3 py-1.5 text-sm"
+                    >
+                      <div>
+                        <span className="font-medium">{s.name}</span>
+                        <span className="ml-2 text-muted-foreground">{s.email}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveStaff(role.id, s.email)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add staff dialog */}
+      <Dialog open={!!addStaffOpen} onOpenChange={(o) => !o && setAddStaffOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Staff Member</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input value={staffName} onChange={(e) => setStaffName(e.target.value)} placeholder="Full name" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (Google account)</Label>
+              <Input value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} placeholder="staff@gmail.com" type="email" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAddStaffOpen(null)}>Cancel</Button>
+            <Button onClick={handleAddStaff} disabled={addingStaff || !staffName.trim() || !staffEmail.trim()}>
+              {addingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete role confirmation */}
+      <Dialog open={!!deleteRoleConfirm} onOpenChange={(o) => !o && setDeleteRoleConfirm(null)}>
+        <DialogContent className="border-destructive">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Role?</DialogTitle>
+            <DialogDescription>
+              Permanently delete "{deleteRoleConfirm}" and remove all{" "}
+              {roles.find((r) => r.id === deleteRoleConfirm)?.staff.length ?? 0} staff members
+              from this role. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteRoleConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (deleteRoleConfirm) await handleDeleteRole(deleteRoleConfirm);
+                setDeleteRoleConfirm(null);
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============== Remote Device Management ==============
+
+function RemoteDeviceManagement() {
+  const { roles, loading } = useRoles();
+  const [activeRole, setActiveRole] = useState<StaffRole | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<Set<string>>(new Set()); // keyed by email
+  const [lockedTabs, setLockedTabs] = useState<Set<TabName>>(new Set());
+  const [reason, setReason] = useState<LockReasonType>("basic");
+
+  // Real-time lock status from global_locks collection.
+  const lockMap = useLockStatus();
+  const [maintHrs, setMaintHrs] = useState("");
+  const [maintMins, setMaintMins] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [staffSearch, setStaffSearch] = useState("");
+  const [lockFilter, setLockFilter] = useState<"all" | "free" | "locked">("all");
+  const [lockConfigOpen, setLockConfigOpen] = useState(false);
+
+  function openRole(role: StaffRole) {
+    setActiveRole(role);
+    setSelectedStaff(new Set());
+    setLockedTabs(new Set());
+    setReason("basic");
+    setStaffSearch("");
+  }
+
+  function toggleStaff(email: string) {
+    setSelectedStaff((prev) => {
       const next = new Set(prev);
-      next.has(u) ? next.delete(u) : next.add(u);
+      next.has(email) ? next.delete(email) : next.add(email);
+
+      // If selecting a single staff, pre-populate checkboxes with their current locks.
+      if (!next.has(email)) {
+        // Deselecting — if no staff left, clear checkboxes.
+        if (next.size === 0) setLockedTabs(new Set());
+        return next;
+      }
+
+      // Selecting — populate checkboxes from this staff's current locks.
+      const staffLocks = lockMap[email.toLowerCase()] ?? [];
+      const lockSet = new Set<TabName>();
+      staffLocks.forEach((t) => lockSet.add(t as TabName));
+
+      // If multiple staff selected, intersect (show only tabs locked for ALL).
+      if (next.size > 1) {
+        next.forEach((e) => {
+          const l = lockMap[e.toLowerCase()] ?? [];
+          // Keep only tabs that are in BOTH sets.
+          for (const tab of [...lockSet]) {
+            if (!l.includes(tab)) lockSet.delete(tab);
+          }
+        });
+      }
+
+      setLockedTabs(lockSet);
       return next;
     });
   }
-  function toggleTab(t: TabName) {
+
+  function toggleTab(tab: TabName) {
     setLockedTabs((prev) => {
       const next = new Set(prev);
-      next.has(t) ? next.delete(t) : next.add(t);
+      next.has(tab) ? next.delete(tab) : next.add(tab);
       return next;
     });
   }
@@ -114,346 +525,390 @@ function RemoteLockPanel() {
   }
 
   async function confirmLock() {
-    if (!targetEmail || selectedUsernames.size === 0) return;
-    setApplying(true);
-    const res = await applyRemoteLocks({
-      targetEmail,
-      usernames: [...selectedUsernames],
-      lockedTabs: [...lockedTabs],
-      reason,
-      duration: durationString(),
-    });
-    setApplying(false);
-    setModalOpen(false);
-    if (res.ok) {
-      const n = lockedTabs.size;
-      toast.success(
-        n > 0
-          ? `Locked ${n} tab(s) for ${selectedUsernames.size} user(s)`
-          : `Access restored for ${selectedUsernames.size} user(s)`
-      );
-    } else {
-      toast.error("Lock failed", { description: res.error });
+    const role = activeRole;
+    if (!role || selectedStaff.size === 0) return;
+    setLocking(true);
+
+    let success = 0;
+    for (const email of selectedStaff) {
+      const staffMember = role.staff.find((s) => s.email === email);
+      const targetName = staffMember?.name ?? email;
+      const res = await applyRemoteLocks({
+        targetEmail: email,
+        usernames: [targetName],
+        lockedTabs: [...lockedTabs],
+        reason,
+        duration: durationString(),
+      });
+      if (res.ok) success++;
     }
+
+    setLocking(false);
+    setConfirmOpen(false);
+    if (success > 0) {
+      toast.success(`Locked ${lockedTabs.size} tab(s) for ${success} staff`);
+    } else {
+      toast.error("Lock failed");
+    }
+    setSelectedStaff(new Set());
+    setLockedTabs(new Set());
+  }
+
+  /** Unlock — removes unchecked tabs from the lock. Keeps checked tabs locked.
+   *  If ALL tabs unchecked → full unlock (deletes entry). */
+  async function unlockSelected() {
+    const role = activeRole;
+    if (!role || selectedStaff.size === 0) return;
+    setUnlocking(true);
+
+    let success = 0;
+    let errors = 0;
+    for (const email of selectedStaff) {
+      const staffMember = role.staff.find((s) => s.email === email);
+      const targetName = staffMember?.name ?? email;
+      try {
+        if (lockedTabs.size === 0) {
+          // No tabs checked → full unlock.
+          const res = await unlockStaff({ targetEmail: email, username: targetName });
+          if (res.ok) success++;
+          else errors++;
+        } else {
+          // Keep only the checked tabs locked (removes unchecked ones).
+          const res = await applyRemoteLocks({
+            targetEmail: email,
+            usernames: [targetName],
+            lockedTabs: [...lockedTabs],
+            reason: "basic",
+            duration: null,
+          });
+          if (res.ok) success++;
+          else errors++;
+        }
+      } catch {
+        errors++;
+      }
+    }
+
+    setUnlocking(false);
+    if (success > 0 && errors === 0) {
+      const removed = LOCKABLE_TABS.length - lockedTabs.size;
+      toast.success(
+        lockedTabs.size === 0
+          ? `Fully unlocked ${success} staff`
+          : `Removed ${removed} tab(s), kept ${lockedTabs.size} locked`
+      );
+    } else if (errors > 0) {
+      toast.error(`Unlocked ${success}, ${errors} failed`);
+    }
+    setSelectedStaff(new Set());
+    setLockedTabs(new Set());
   }
 
   return (
-    <div>
+    <div className="border-t border-white/5 pt-8">
       <div className="mb-3 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h3 className="text-lg font-semibold">Remote Device Management</h3>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Lock specific tabs for staff members. Enforcement is applied in real time.
+        Click a role to select staff and lock their tabs.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {MANAGED_EMAILS.map((email) => (
-          <button
-            key={email}
-            onClick={() => selectEmail(email)}
-            className={cn(
-              "rounded-xl border p-4 text-left transition-colors",
-              targetEmail === email
-                ? "border-accent-secondary bg-accent-secondary/10"
-                : "border-white/10 hover:bg-white/5"
-            )}
-          >
-            <p className="text-sm font-medium">{email.split("@")[0]}</p>
-            <p className="text-xs text-muted-foreground">{email}</p>
-          </button>
-        ))}
-      </div>
-
-      {targetEmail && (
-        <div className="mt-4 rounded-xl bg-white/5 p-4">
-          <h4 className="mb-3 text-sm font-medium text-muted-foreground">
-            Select Users
-          </h4>
-          {users.length === 0 ? (
-            <p className="text-sm italic text-muted-foreground">
-              No usernames found for this account. Create staff users below first.
-            </p>
-          ) : (
-            <div className="mb-4 flex flex-wrap gap-2">
-              {users.map((u) => (
-                <button
-                  key={u.username}
-                  onClick={() => toggleUsername(u.username)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-sm transition-colors",
-                    selectedUsernames.has(u.username)
-                      ? "bg-accent-secondary text-white"
-                      : "bg-white/10 text-muted-foreground hover:bg-white/20"
-                  )}
-                >
-                  {u.username}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {selectedUsernames.size > 0 && (
-            <>
-              <h4 className="mb-3 text-sm font-medium text-muted-foreground">
-                Restrict Tabs
-              </h4>
-              <div className="mb-4 space-y-2">
-                {LOCKABLE_TABS.map((tab) => (
-                  <label
-                    key={tab.value}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={lockedTabs.has(tab.value)}
-                      onCheckedChange={() => toggleTab(tab.value)}
-                    />
-                    {tab.label}
-                  </label>
-                ))}
-              </div>
-
-              <h4 className="mb-3 text-sm font-medium text-muted-foreground">
-                Lock Reason
-              </h4>
-              <RadioGroup
-                value={reason}
-                onValueChange={(v) => setReason(v as LockReasonType)}
-                className="mb-4 flex gap-4"
-              >
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <RadioGroupItem value="basic" /> Basic
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <RadioGroupItem value="maintenance" /> Maintenance
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <RadioGroupItem value="suspension" /> Review
-                </label>
-              </RadioGroup>
-
-              {reason === "maintenance" && (
-                <div className="mb-4 flex gap-3">
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="Hrs"
-                      value={maintHrs}
-                      onChange={(e) => setMaintHrs(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="Mins"
-                      value={maintMins}
-                      onChange={(e) => setMaintMins(e.target.value)}
-                    />
-                  </div>
-                </div>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : roles.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No roles found. Create roles in Role Management above.</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {roles.map((role) => (
+            <button
+              key={role.id}
+              onClick={() => openRole(role)}
+              className={cn(
+                "rounded-xl border p-4 text-left transition-colors",
+                activeRole?.id === role.id
+                  ? "border-accent-secondary bg-accent-secondary/10"
+                  : "border-white/10 hover:bg-white/5"
               )}
-
-              <Button variant="destructive" onClick={() => setModalOpen(true)}>
-                <Lock className="mr-2 h-4 w-4" />
-                Sync &amp; Lock ({selectedUsernames.size} user
-                {selectedUsernames.size > 1 ? "s" : ""})
-              </Button>
-            </>
-          )}
+            >
+              <p className="text-sm font-medium">{role.name}</p>
+              <p className="text-xs text-muted-foreground">{role.staff.length} staff</p>
+            </button>
+          ))}
         </div>
       )}
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      {/* Staff selection + lock modal */}
+      <Dialog open={!!activeRole} onOpenChange={(o) => !o && setActiveRole(null)}>
+        <DialogContent className="max-w-[calc(100%-1rem)] sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{activeRole?.name} — Select Staff</DialogTitle>
+            <DialogDescription>
+              Click names to select/deselect. Then configure restricted tabs below.
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeRole && activeRole.staff.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No staff in this role. Add them in Role Management.
+            </p>
+          ) : (
+            <>
+              {/* Search + filter row */}
+              <div className="mb-2 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search staff..."
+                    value={staffSearch}
+                    onChange={(e) => setStaffSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  {(["all", "free", "locked"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setLockFilter(f)}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                        lockFilter === f
+                          ? "bg-white text-black"
+                          : "bg-white/5 text-muted-foreground hover:bg-white/10"
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Select All + count */}
+              <div className="mb-1 flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    const filtered = activeRole?.staff.filter((s) => {
+                      if (!staffSearch.trim()) return true;
+                      const term = staffSearch.toLowerCase();
+                      return s.name.toLowerCase().includes(term) || s.email.toLowerCase().includes(term);
+                    }).filter((s) => {
+                      const tabs = lockMap[s.email.toLowerCase()] ?? [];
+                      if (lockFilter === "free") return tabs.length === 0;
+                      if (lockFilter === "locked") return tabs.length > 0;
+                      return true;
+                    }) ?? [];
+                    const allSelected = filtered.every((s) => selectedStaff.has(s.email));
+                    setSelectedStaff((prev) => {
+                      const next = new Set(prev);
+                      if (allSelected) {
+                        filtered.forEach((s) => next.delete(s.email));
+                      } else {
+                        filtered.forEach((s) => next.add(s.email));
+                      }
+                      return next;
+                    });
+                  }}
+                  className="text-xs font-medium text-accent-secondary hover:underline"
+                >
+                  Select All
+                </button>
+                {selectedStaff.size > 0 && (
+                  <button
+                    onClick={() => setSelectedStaff(new Set())}
+                    className="text-xs text-muted-foreground hover:text-white"
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
+
+              {/* Staff table */}
+              <div className="max-h-[35vh] space-y-1.5 overflow-y-auto overflow-x-visible px-2 py-1 scrollbar-thin">
+                {activeRole?.staff
+                  .filter((s) => {
+                    if (!staffSearch.trim()) return true;
+                    const term = staffSearch.toLowerCase();
+                    return (
+                      s.name.toLowerCase().includes(term) ||
+                      s.email.toLowerCase().includes(term)
+                    );
+                  })
+                  .filter((s) => {
+                    const tabs = lockMap[s.email.toLowerCase()] ?? [];
+                    if (lockFilter === "free") return tabs.length === 0;
+                    if (lockFilter === "locked") return tabs.length > 0;
+                    return true;
+                  })
+                  .map((s) => {
+                  const sel = selectedStaff.has(s.email);
+                  const staffLocks = lockMap[s.email.toLowerCase()] ?? lockMap[s.email] ?? [];
+                  const isLocked = staffLocks.length > 0;
+                  return (
+                    <button
+                      key={s.email}
+                      onClick={() => toggleStaff(s.email)}
+                      className={cn(
+                        "grid w-full grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                        sel
+                          ? "bg-accent-secondary/20 ring-1 ring-accent-secondary"
+                          : "bg-white/5 hover:bg-white/10"
+                      )}
+                    >
+                      <span className={cn("flex items-center gap-1.5 font-medium", sel && "text-accent-secondary")}>
+                        {s.name}
+                      </span>
+                      <span className="truncate text-muted-foreground">{s.email}</span>
+                      {isLocked ? (
+                        <span className="flex items-center gap-1 rounded-full bg-destructive/20 px-2 py-0.5 text-[0.65rem] font-medium text-destructive">
+                          <Lock className="h-2.5 w-2.5" />
+                          {staffLocks.length} locked
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-success-green/10 px-2 py-0.5 text-[0.65rem] text-success-green">
+                          Free
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Action bar */}
+              {selectedStaff.size > 0 && (
+                <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+                  <p className="text-sm text-muted-foreground">
+                    {selectedStaff.size} selected
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => setLockConfigOpen(true)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm lock dialog */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Secure Remote User</DialogTitle>
+            <DialogTitle>Confirm Lock</DialogTitle>
             <DialogDescription>
-              Target:{" "}
-              <span className="font-mono text-accent-secondary">
-                {targetEmail}
-              </span>
-              <br />
-              {lockedTabs.size} tab(s) restricted for {selectedUsernames.size} user(s).
-              Reason: {reason}
+              Target: {selectedStaff.size} staff from {activeRole?.name}.{" "}
+              {lockedTabs.size} tab(s) restricted. Reason: {reason}.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setModalOpen(false)} disabled={applying}>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={locking}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmLock} disabled={applying}>
-              {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button variant="destructive" onClick={confirmLock} disabled={locking}>
+              {locking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sync &amp; Lock
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
 
-// ============== Staff Management ==============
-
-function StaffManagementPanel() {
-  const [users, setUsers] = useState<StaffUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    username: "",
-    realName: "",
-    role: "event_manager" as Role,
-    email: "eveman.test@gmail.com",
-  });
-
-  async function load() {
-    const res = await fetchStaffUsers();
-    if (res.ok) setUsers(res.users);
-    setLoading(false);
-  }
-  useEffect(() => {
-    let active = true;
-    fetchStaffUsers().then((res) => {
-      if (!active) return;
-      if (res.ok) setUsers(res.users);
-      setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function handleCreate() {
-    const res = await createStaffUser(form);
-    if (res.ok) {
-      toast.success("Staff user created");
-      setOpen(false);
-      setForm({ username: "", realName: "", role: "event_manager", email: "eveman.test@gmail.com" });
-      load();
-    } else {
-      toast.error("Create failed", { description: res.error });
-    }
-  }
-
-  async function handleDelete(username: string) {
-    const res = await deleteStaffUser(username);
-    if (res.ok) {
-      toast.success(`Deleted ${username}`);
-      load();
-    } else {
-      toast.error("Delete failed", { description: res.error });
-    }
-  }
-
-  return (
-    <div className="border-t border-white/5 pt-8">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Staff Users</h3>
-        <Button size="sm" onClick={() => setOpen(true)}>
-          <UserPlus className="mr-1.5 h-4 w-4" /> Add Staff
-        </Button>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      ) : users.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No staff users yet. Click &quot;Add Staff&quot; to create one.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {users.map((u) => (
-            <div
-              key={u.username}
-              className="flex items-center justify-between rounded-lg bg-white/5 p-3"
-            >
-              <div>
-                <p className="text-sm font-medium">{u.username}</p>
-                <p className="text-xs text-muted-foreground">
-                  {u.realName} · {u.role} · {u.email}
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleDelete(u.username)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+      {/* Lock config modal — restrict tabs + reason, opened by Next button */}
+      <Dialog open={lockConfigOpen} onOpenChange={setLockConfigOpen}>
+        <DialogContent className="max-w-[calc(100%-1rem)] sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Add Staff User</DialogTitle>
+            <DialogTitle>Lock Configuration</DialogTitle>
+            <DialogDescription>
+              {selectedStaff.size} staff selected from {activeRole?.name}.
+            </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="su-username">Username</Label>
-              <Input
-                id="su-username"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="e.g. john_doe"
-              />
+            <div>
+              <h5 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Restrict Tabs
+              </h5>
+              <div className="space-y-2">
+                {LOCKABLE_TABS.map((tab) => {
+                  const selectedEmails = [...selectedStaff];
+                  const lockedByAll = selectedEmails.every((email) => {
+                    const tabs = lockMap[email.toLowerCase()] ?? [];
+                    return tabs.includes(tab.value);
+                  });
+                  return (
+                    <label
+                      key={tab.value}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors",
+                        lockedByAll && "bg-destructive/10"
+                      )}
+                    >
+                      <Checkbox
+                        checked={lockedTabs.has(tab.value)}
+                        onCheckedChange={() => toggleTab(tab.value)}
+                      />
+                      <span>{tab.label}</span>
+                      {lockedByAll && (
+                        <span className="ml-auto text-[0.65rem] font-medium text-destructive">
+                          <Lock className="mr-1 inline h-2.5 w-2.5" />
+                          Locked
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="su-realname">Real Name</Label>
-              <Input
-                id="su-realname"
-                value={form.realName}
-                onChange={(e) => setForm({ ...form, realName: e.target.value })}
-                placeholder="e.g. John Doe"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={form.role}
-                onValueChange={(v) => setForm({ ...form, role: (v ?? "") as Role })}
+
+            <div>
+              <h5 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Lock Reason
+              </h5>
+              <RadioGroup
+                value={reason}
+                onValueChange={(v) => setReason((v ?? "basic") as LockReasonType)}
+                className="flex gap-4"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r.replace("_", " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Linked Account</Label>
-              <Select
-                value={form.email}
-                onValueChange={(v) => setForm({ ...form, email: v ?? "" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MANAGED_EMAILS.map((e) => (
-                    <SelectItem key={e} value={e}>
-                      {e}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <RadioGroupItem value="basic" /> Basic
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <RadioGroupItem value="suspension" /> Review
+                </label>
+              </RadioGroup>
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+            <Button variant="ghost" onClick={() => setLockConfigOpen(false)}>
+              Back
             </Button>
-            <Button onClick={handleCreate} disabled={!form.username.trim()}>
-              Create
+            <Button
+              variant="outline"
+              className="border-success-green text-success-green hover:bg-success-green/10"
+              disabled={unlocking}
+              onClick={() => {
+                setLockConfigOpen(false);
+                unlockSelected();
+              }}
+            >
+              {unlocking ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LockOpen className="mr-2 h-4 w-4" />
+              )}
+              Unlock
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setLockConfigOpen(false);
+                setConfirmOpen(true);
+              }}
+            >
+              <Lock className="mr-2 h-4 w-4" />
+              Sync &amp; Lock
             </Button>
           </DialogFooter>
         </DialogContent>
