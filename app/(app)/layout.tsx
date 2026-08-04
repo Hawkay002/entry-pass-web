@@ -3,15 +3,12 @@
 // Also runs the auto-absent check server-side on every request.
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { AppShell } from "@/components/layout/app-shell";
 import { getAppUser } from "@/lib/firebase/server-auth";
 import { isAdmin } from "@/lib/auth";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { paths } from "@/lib/paths";
 
-// Force dynamic rendering — this layout must run on every request,
-// not be cached at build time (needed for auto-absent + session checks).
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({
@@ -24,29 +21,34 @@ export default async function AppLayout({
 
   // Auto-absent: check if deadline passed and mark coming-soon tickets.
   // Runs directly via Admin SDK — no server action dependency.
-  try {
-    const db = getAdminDb();
-    const settingsSnap = await db.doc(paths.settingsDoc).get();
-    const deadline = settingsSnap.data()?.deadline as string | undefined;
+  // Intentionally NOT in a try/catch so errors show in Vercel logs.
+  const db = getAdminDb();
+  const settingsSnap = await db.doc(paths.settingsDoc).get();
+  const settingsData = settingsSnap.data();
+  const deadline = settingsData?.deadline as string | undefined;
 
-    if (deadline) {
-      const deadlineMs = new Date(deadline).getTime();
-      if (!isNaN(deadlineMs) && Date.now() > deadlineMs) {
-        const snap = await db
-          .collection(paths.ticketsCollection)
-          .where("status", "==", "coming-soon")
-          .get();
+  console.log("[auto-absent] deadline:", deadline, "now:", Date.now());
 
-        if (!snap.empty) {
-          const batch = db.batch();
-          snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
-          await batch.commit();
-          console.log(`[auto-absent] Marked ${snap.size} ticket(s) as absent`);
-        }
+  if (deadline) {
+    const deadlineMs = new Date(deadline).getTime();
+    const now = Date.now();
+    console.log("[auto-absent] deadlineMs:", deadlineMs, "now:", now, "passed:", now > deadlineMs);
+
+    if (!isNaN(deadlineMs) && now > deadlineMs) {
+      const snap = await db
+        .collection(paths.ticketsCollection)
+        .where("status", "==", "coming-soon")
+        .get();
+
+      console.log("[auto-absent] coming-soon tickets:", snap.size);
+
+      if (!snap.empty) {
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
+        await batch.commit();
+        console.log(`[auto-absent] ✅ Marked ${snap.size} ticket(s) as absent`);
       }
     }
-  } catch (err) {
-    console.error("[auto-absent] failed:", err);
   }
 
   return (
