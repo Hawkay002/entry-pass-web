@@ -32,6 +32,7 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ role: "", name: "", phone: "", whatsapp: "", description: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <div
@@ -77,20 +78,20 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
             {contacts.map((c) => (
               <div key={c.id} className="relative rounded-xl bg-white/5 p-3">
                 {isAdmin && (
-                  <div className="absolute right-2 top-2 flex gap-1">
+                  <div className="absolute right-2 top-2 flex gap-2">
                     <button
                       onClick={() => {
                         setEditId(c.id);
                         setEditForm({ role: c.role, name: c.name, phone: c.phone || "", whatsapp: c.whatsapp || "", description: c.description });
                         setEditOpen(true);
                       }}
-                      className="text-muted-foreground hover:text-accent-secondary"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-muted-foreground transition-colors hover:text-accent-secondary hover:border-accent-secondary/30"
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
                     <button
-                      onClick={() => deleteContact(c.id).then(r => r.ok ? toast.success("Removed") : toast.error("Failed"))}
-                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteConfirm({ id: c.id, name: c.name })}
+                      className="flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-muted-foreground transition-colors hover:text-destructive hover:border-destructive/30"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -223,11 +224,37 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Delete confirmation (admin only) */}
+      {isAdmin && (
+        <Dialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+          <DialogContent className="border-destructive">
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Remove Contact?</DialogTitle>
+              <DialogDescription>
+                Remove <strong>{deleteConfirm?.name}</strong> from the help tray? This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={async () => {
+                if (deleteConfirm) {
+                  const res = await deleteContact(deleteConfirm.id);
+                  if (res.ok) toast.success("Contact removed");
+                  else toast.error("Failed");
+                }
+                setDeleteConfirm(null);
+              }}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remove
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
-
-/** Admin panel for managing help contacts — shown in Configuration. */
 export function ContactManagementPanel() {
   const { contacts, loading } = useContacts();
   const [open, setOpen] = useState(false);
