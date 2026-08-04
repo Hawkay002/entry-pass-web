@@ -683,8 +683,8 @@ function RemoteDeviceManagement() {
                 </div>
               </div>
 
-              {/* Select All + count */}
-              <div className="mb-1 flex items-center justify-between">
+              {/* Select All / Deselect All */}
+              <div className="mb-1">
                 <button
                   onClick={() => {
                     const filtered = activeRole?.staff.filter((s) => {
@@ -697,7 +697,7 @@ function RemoteDeviceManagement() {
                       if (lockFilter === "locked") return tabs.length > 0;
                       return true;
                     }) ?? [];
-                    const allSelected = filtered.every((s) => selectedStaff.has(s.email));
+                    const allSelected = filtered.length > 0 && filtered.every((s) => selectedStaff.has(s.email));
                     setSelectedStaff((prev) => {
                       const next = new Set(prev);
                       if (allSelected) {
@@ -710,16 +710,21 @@ function RemoteDeviceManagement() {
                   }}
                   className="text-xs font-medium text-accent-secondary hover:underline"
                 >
-                  Select All
+                  {(() => {
+                    const filtered = activeRole?.staff.filter((s) => {
+                      if (!staffSearch.trim()) return true;
+                      const term = staffSearch.toLowerCase();
+                      return s.name.toLowerCase().includes(term) || s.email.toLowerCase().includes(term);
+                    }).filter((s) => {
+                      const tabs = lockMap[s.email.toLowerCase()] ?? [];
+                      if (lockFilter === "free") return tabs.length === 0;
+                      if (lockFilter === "locked") return tabs.length > 0;
+                      return true;
+                    }) ?? [];
+                    const allSelected = filtered.length > 0 && filtered.every((s) => selectedStaff.has(s.email));
+                    return allSelected ? "Deselect All" : "Select All";
+                  })()}
                 </button>
-                {selectedStaff.size > 0 && (
-                  <button
-                    onClick={() => setSelectedStaff(new Set())}
-                    className="text-xs text-muted-foreground hover:text-white"
-                  >
-                    Clear selection
-                  </button>
-                )}
               </div>
 
               {/* Staff table */}
@@ -878,6 +883,15 @@ function RemoteDeviceManagement() {
                 </label>
               </RadioGroup>
             </div>
+          </div>
+
+          {/* Unlock instructions */}
+          <div className="flex items-start gap-2 rounded-lg border border-white/8 bg-white/[0.02] p-3 text-xs text-muted-foreground">
+            <LockOpen className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-green" />
+            <span>
+              To unlock a specific tab, uncheck it above then click Unlock.
+              To fully unlock all tabs, uncheck everything and click Unlock.
+            </span>
           </div>
 
           <DialogFooter>

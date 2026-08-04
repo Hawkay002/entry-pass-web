@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -66,7 +66,6 @@ export default function GuestsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [deleteProgress, setDeleteProgress] = useState(0);
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -144,17 +143,12 @@ export default function GuestsPage() {
 
   async function confirmDelete() {
     const ids = [...selected];
-    const total = ids.length;
     setDeleting(true);
-    setDeleteProgress(0);
 
     let deleted = 0;
     for (const id of ids) {
       const res = await deleteOneTicket(id);
-      if (res.ok) {
-        deleted++;
-        setDeleteProgress(Math.round((deleted / total) * 100));
-      }
+      if (res.ok) deleted++;
     }
 
     setDeleting(false);
@@ -395,18 +389,17 @@ export default function GuestsPage() {
             </DialogDescription>
           </DialogHeader>
           {deleting && (
-            <div className="space-y-2 py-2">
-              <Progress value={deleteProgress} />
-              <p className="text-right text-xs text-muted-foreground">
-                Deleting {Math.round((deleteProgress / 100) * selected.size)} /{" "}
-                {selected.size}
-              </p>
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Deleting...
             </div>
           )}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-              Cancel
-            </Button>
+            {!deleting && (
+              <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </Button>
+            )}
             <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete
