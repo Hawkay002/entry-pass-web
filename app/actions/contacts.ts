@@ -62,6 +62,33 @@ export async function createContact(input: {
   return { ok: true };
 }
 
+/** Update an existing contact (admin only). */
+export async function updateContact(
+  contactId: string,
+  input: {
+    role: string;
+    name: string;
+    phone?: string;
+    whatsapp?: string;
+    description: string;
+  }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user || user.role !== "admin")
+    return { ok: false, error: "Admin role required." };
+
+  await getAdminDb().collection(paths.contactsCollection).doc(contactId).update({
+    role: input.role.trim(),
+    name: input.name.trim(),
+    phone: input.phone?.trim() || null,
+    whatsapp: input.whatsapp?.trim() || null,
+    description: input.description.trim(),
+  });
+
+  await logAction(user, "CONFIG_CHANGE", `Updated contact: ${input.name} (${input.role}).`);
+  return { ok: true };
+}
+
 /** Delete a contact (admin only). */
 export async function deleteContact(
   contactId: string

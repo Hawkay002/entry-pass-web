@@ -5,7 +5,7 @@
 "use client";
 
 import { useState } from "react";
-import { Headset, ChevronLeft, X, Phone, Trash2, UserPlus } from "lucide-react";
+import { Headset, ChevronLeft, X, Phone, Trash2, UserPlus, Pencil } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
@@ -22,13 +22,16 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useContacts } from "@/hooks/use-contacts";
-import { createContact, deleteContact } from "@/app/actions/contacts";
+import { createContact, deleteContact, updateContact } from "@/app/actions/contacts";
 
 export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
   const { contacts, loading } = useContacts();
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ role: "", name: "", phone: "", whatsapp: "", description: "" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ role: "", name: "", phone: "", whatsapp: "", description: "" });
 
   return (
     <div
@@ -74,12 +77,24 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
             {contacts.map((c) => (
               <div key={c.id} className="relative rounded-xl bg-white/5 p-3">
                 {isAdmin && (
-                  <button
-                    onClick={() => deleteContact(c.id).then(r => r.ok ? toast.success("Removed") : toast.error("Failed"))}
-                    className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+                  <div className="absolute right-2 top-2 flex gap-1">
+                    <button
+                      onClick={() => {
+                        setEditId(c.id);
+                        setEditForm({ role: c.role, name: c.name, phone: c.phone || "", whatsapp: c.whatsapp || "", description: c.description });
+                        setEditOpen(true);
+                      }}
+                      className="text-muted-foreground hover:text-accent-secondary"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => deleteContact(c.id).then(r => r.ok ? toast.success("Removed") : toast.error("Failed"))}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 <p className="text-sm font-semibold">{c.role}</p>
                 <p className="text-sm text-accent-secondary">{c.name}</p>
@@ -155,6 +170,55 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
                 if (res.ok) { toast.success("Contact added"); setForm({ role: "", name: "", phone: "", whatsapp: "", description: "" }); setAddOpen(false); }
                 else toast.error("Failed", { description: res.error });
               }}>Add</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit contact dialog (admin only) */}
+      {isAdmin && (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Contact</DialogTitle>
+              <DialogDescription>Update this contact's details.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Role / Title</Label>
+                <Input value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+91..." />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>WhatsApp</Label>
+                  <Input value={editForm.whatsapp} onChange={(e) => setEditForm({ ...editForm, whatsapp: e.target.value })} placeholder="91..." />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button onClick={async () => {
+                if (!editForm.role.trim() || !editForm.name.trim()) { toast.error("Role and name required"); return; }
+                const res = await updateContact(editId!, {
+                  role: editForm.role, name: editForm.name,
+                  phone: editForm.phone || undefined, whatsapp: editForm.whatsapp || undefined,
+                  description: editForm.description || "Contact for assistance.",
+                });
+                if (res.ok) { toast.success("Contact updated"); setEditOpen(false); }
+                else toast.error("Failed", { description: res.error });
+              }}>Save Changes</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
