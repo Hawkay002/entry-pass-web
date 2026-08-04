@@ -8,6 +8,7 @@ import { Starfield } from "./starfield";
 import { AppHeader } from "./app-header";
 import { useRemoteLocks } from "@/hooks/use-remote-locks";
 import { useHeartbeat } from "@/hooks/use-presence";
+import { useStaffCheck } from "@/hooks/use-staff-check";
 import { useChat } from "@/hooks/use-chat";
 import { ChatDrawer } from "@/components/chat/chat-drawer";
 import { HelpTray } from "@/components/layout/help-tray";
@@ -42,6 +43,9 @@ export function AppShell({
 
   // Heartbeat: writes device presence every 10s.
   useHeartbeat(userEmail, username);
+
+  // Staff check: if admin removes this staff member, auto-logout instantly.
+  useStaffCheck(userEmail, isAdmin);
 
   // Chat drawer state.
   const [chatOpen, setChatOpen] = useState(false);

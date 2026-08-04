@@ -87,7 +87,8 @@ export async function addStaffToRole(
   return { ok: true };
 }
 
-/** Remove a staff member from a role by email. */
+/** Remove a staff member from a role by email.
+ *  Also revokes their Firebase Auth session so they're logged out immediately. */
 export async function removeStaffFromRole(
   roleId: string,
   staffEmail: string
@@ -106,10 +107,31 @@ export async function removeStaffFromRole(
     (s) => s.email.toLowerCase() !== staffEmail.toLowerCase()
   );
   await ref.update({ staff: filtered });
+
+  // Check if this email exists in ANY other role.
+  const allRolesSnap = await getAdminDb().collection(paths.rolesCollection).get();
+  const stillExists = allRolesSnap.docs.some((d) => {
+    const s = (d.data().staff as StaffMember[]) ?? [];
+    return s.some((m) => m.email.toLowerCase() === staffEmail.toLowerCase());
+  });
+
+  // If removed from all roles, revoke their Firebase Auth session immediately.
+  if (!stillExists) {
+    try {
+      const { getAdminAuth } = await import("@/lib/firebase/admin");
+      const auth = getAdminAuth();
+      const userRecord = await auth.getUserByEmail(staffEmail);
+      await auth.revokeRefreshTokens(userRecord.uid);
+      console.log(`[removeStaff] Revoked tokens for ${staffEmail} (uid: ${userRecord.uid})`);
+    } catch {
+      // User might not exist in Auth — ignore
+    }
+  }
+
   await logAction(
     user,
     "LOCK_ACTION",
-    `Removed staff (${staffEmail}) from role "${roleId}".`
+    `Removed staff (${staffEmail}) from role "${roleId}"${!stillExists ? " and revoked access" : ""}.`
   );
   return { ok: true };
 }

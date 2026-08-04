@@ -45,6 +45,7 @@ export async function getAppUser(): Promise<AppUser | null> {
 
   if (!isAdmin) {
     // Staff: find their name from the roles collection by email.
+    // If they're NOT in any role, return null (auto-kicks them out).
     try {
       const rolesSnap = await getAdminDb().collection(paths.rolesCollection).get();
       let foundName = "";
@@ -57,23 +58,22 @@ export async function getAppUser(): Promise<AppUser | null> {
         );
         if (match) {
           foundName = match.name;
-          foundRole = d.id; // role name = doc id
+          foundRole = d.id;
         }
       });
-      if (foundName) {
-        username = foundName;
-      } else {
-        username = email;
+      // If not found in any role, they've been removed — reject them.
+      if (!foundName) {
+        console.log("[server-auth] staff not in any role, rejecting:", email);
+        return null;
       }
-      // Use the role from the roles collection.
       return {
         uid: decoded.uid,
         email: decoded.email ?? null,
-        username,
+        username: foundName,
         role: foundRole,
       };
     } catch {
-      username = email;
+      return null;
     }
   }
 

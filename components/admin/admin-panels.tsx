@@ -264,6 +264,7 @@ function RoleManagementPanel() {
   const [staffEmail, setStaffEmail] = useState("");
   const [addingStaff, setAddingStaff] = useState(false);
   const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null);
+  const [removeStaffConfirm, setRemoveStaffConfirm] = useState<{ roleId: string; email: string; name: string } | null>(null);
 
   async function handleCreateRole() {
     if (!newRoleName.trim()) return;
@@ -372,7 +373,7 @@ function RoleManagementPanel() {
                         <span className="ml-2 text-muted-foreground">{s.email}</span>
                       </div>
                       <button
-                        onClick={() => handleRemoveStaff(role.id, s.email)}
+                        onClick={() => setRemoveStaffConfirm({ roleId: role.id, email: s.email, name: s.name })}
                         className="text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -436,6 +437,41 @@ function RoleManagementPanel() {
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove staff confirmation */}
+      <Dialog open={!!removeStaffConfirm} onOpenChange={(o) => !o && setRemoveStaffConfirm(null)}>
+        <DialogContent className="border-destructive">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Remove Staff Member?</DialogTitle>
+            <DialogDescription>
+              Remove <strong>{removeStaffConfirm?.name}</strong> ({removeStaffConfirm?.email}) from this role?
+              {!roles.some((r) => r.id !== removeStaffConfirm?.roleId && r.staff.some((s) => s.email === removeStaffConfirm?.email)) && (
+                <span className="mt-2 block text-destructive">
+                  They will be immediately logged out and lose all access.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRemoveStaffConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (removeStaffConfirm) {
+                  await handleRemoveStaff(removeStaffConfirm.roleId, removeStaffConfirm.email);
+                  toast.success(`${removeStaffConfirm.name} removed and access revoked`);
+                }
+                setRemoveStaffConfirm(null);
+              }}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Remove & Revoke
             </Button>
           </DialogFooter>
         </DialogContent>
