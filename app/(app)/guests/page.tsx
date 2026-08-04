@@ -73,10 +73,13 @@ export default function GuestsPage() {
   const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
 
-  // Auto-absent: check every 5 seconds + on mount.
-  // The API marks coming-soon → absent in the DB, and the onSnapshot
-  // listener picks up the change live — no manual refresh needed.
+  // Auto-absent: only polls when there's a deadline set AND coming-soon tickets.
+  // Skips entirely when no deadline or all tickets are already arrived/absent.
+  const hasComingSoon = tickets.some((t) => t.status === "coming-soon");
+  const hasDeadline = !!settings.deadline;
+
   useEffect(() => {
+    if (!hasDeadline || !hasComingSoon) return;
     function check() {
       fetch("/api/auto-absent", { method: "POST" })
         .then((r) => r.json())
@@ -88,9 +91,9 @@ export default function GuestsPage() {
         .catch(() => {});
     }
     check();
-    const interval = setInterval(check, 5000);
+    const interval = setInterval(check, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [hasDeadline, hasComingSoon]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
