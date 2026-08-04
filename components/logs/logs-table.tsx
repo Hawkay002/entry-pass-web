@@ -2,20 +2,12 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
-import { Loader2, Search, Trash2 } from "lucide-react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { Loader2, Search, Trash2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -77,6 +69,18 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
+  const typeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (typeRef.current && !typeRef.current.contains(e.target as Node)) {
+        setTypeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -159,8 +163,8 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search user, action, or details..."
@@ -169,34 +173,42 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
             className="pl-9"
           />
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="sm">
-                Type
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Filter by Action</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => setActionFilter("all")}
-              className={cn(actionFilter === "all" && "bg-white/10 font-medium")}
-            >
-              All Actions
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {ACTION_FILTERS.map((a) => (
-              <DropdownMenuItem
-                key={a}
-                onClick={() => setActionFilter(a)}
-                className={cn(actionFilter === a && "bg-white/10 font-medium")}
+        <div ref={typeRef} className="relative shrink-0">
+          <button
+            onClick={() => setTypeOpen((o) => !o)}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-input bg-input/60 px-4 text-sm font-medium whitespace-nowrap transition-colors hover:bg-input/80"
+          >
+            <Filter className="h-4 w-4" />
+            {actionFilter === "all" ? "All Types" : ACTION_LABELS[actionFilter] || "Type"}
+          </button>
+          {typeOpen && (
+            <div className="absolute right-0 top-full z-50 mt-1 max-h-[50vh] w-56 overflow-y-auto rounded-lg border border-white/10 bg-[#0f0f0f] p-1 shadow-2xl scrollbar-thin">
+              <FilterSection label="Filter by Action" />
+              <button
+                onClick={() => { setActionFilter("all"); }}
+                className={cn(
+                  "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-white/10",
+                  actionFilter === "all" && "bg-white/10 font-medium text-accent-secondary"
+                )}
               >
-                {ACTION_LABELS[a]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                All Actions
+              </button>
+              <FilterDivider />
+              {ACTION_FILTERS.map((a) => (
+                <button
+                  key={a}
+                  onClick={() => setActionFilter(a)}
+                  className={cn(
+                    "block w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-white/10",
+                    actionFilter === a && "bg-white/10 font-medium text-accent-secondary"
+                  )}
+                >
+                  {ACTION_LABELS[a]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {selectionMode && (
@@ -263,4 +275,12 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
       </div>
     </div>
   );
+}
+
+function FilterSection({ label }: { label: string }) {
+  return <p className="px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>;
+}
+
+function FilterDivider() {
+  return <div className="my-1 border-t border-white/10" />;
 }
