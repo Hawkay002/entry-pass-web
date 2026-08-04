@@ -73,17 +73,24 @@ export default function GuestsPage() {
   const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
 
-  // Auto-absent: call the API endpoint on mount + when ticket count changes.
+  // Auto-absent: check every 5 seconds + on mount.
+  // The API marks coming-soon → absent in the DB, and the onSnapshot
+  // listener picks up the change live — no manual refresh needed.
   useEffect(() => {
-    fetch("/api/auto-absent", { method: "POST" })
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.ok && res.count > 0) {
-          toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
-        }
-      })
-      .catch(() => {});
-  }, [tickets.length]);
+    function check() {
+      fetch("/api/auto-absent", { method: "POST" })
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.ok && res.count > 0) {
+            toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
+          }
+        })
+        .catch(() => {});
+    }
+    check();
+    const interval = setInterval(check, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
