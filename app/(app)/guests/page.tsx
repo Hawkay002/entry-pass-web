@@ -73,15 +73,16 @@ export default function GuestsPage() {
   const filterRef = useRef<HTMLDivElement>(null);
   const { settings } = useSettings();
 
-  // Auto-absent: call on mount + when ticket count changes.
-  // The server-side layout also runs this check, but this catches the case
-  // where you stay on the page while the deadline crosses.
+  // Auto-absent: call the API endpoint on mount + when ticket count changes.
   useEffect(() => {
-    autoMarkAbsent().then((res) => {
-      if (res.ok && res.count > 0) {
-        toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
-      }
-    });
+    fetch("/api/auto-absent", { method: "POST" })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok && res.count > 0) {
+          toast.success(`Deadline passed — ${res.count} guest(s) marked absent.`);
+        }
+      })
+      .catch(() => {});
   }, [tickets.length]);
 
   useEffect(() => {
