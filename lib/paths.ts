@@ -17,4 +17,5 @@ export const paths = {
   communicationsCollection: "communications",
   typingCollection: "typing_status",
   presenceRoot: "global_presence",
+  contactsCollection: "help_contacts",
 } as const;

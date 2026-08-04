@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ContactManagementPanel } from "@/components/layout/help-tray";
 import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +81,7 @@ export function AdminPanels() {
     <div className="space-y-10 border-t border-white/5 pt-8">
       <MaintenancePanel />
       <RoleManagementPanel />
+      <ContactManagementPanel />
       <RemoteDeviceManagement />
       <FactoryResetPanel />
     </div>

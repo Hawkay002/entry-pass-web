@@ -69,12 +69,18 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // ---- Chat + typing ----------------------------------------------------
+    // ---- Chat + typing (legacy, kept for backwards compat) ----------------
     match /communications/{msgId} {
       allow read, write: if isSignedIn();
     }
     match /typing_status/{channelId} {
       allow read, write: if isSignedIn();
+    }
+
+    // ---- Help contacts (admin-managed) -----------------------------------
+    match /help_contacts/{contactId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // ---- Default deny -----------------------------------------------------

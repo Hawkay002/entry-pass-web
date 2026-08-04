@@ -7,10 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Starfield } from "./starfield";
 import { AppHeader } from "./app-header";
 import { useRemoteLocks } from "@/hooks/use-remote-locks";
-import { useHeartbeat } from "@/hooks/use-presence";
 import { useStaffCheck } from "@/hooks/use-staff-check";
-import { useChat } from "@/hooks/use-chat";
-import { ChatDrawer } from "@/components/chat/chat-drawer";
 import { HelpTray } from "@/components/layout/help-tray";
 import { EasterEgg } from "@/components/layout/easter-egg";
 import { LockedTabsProvider } from "@/components/layout/locked-tabs-context";
@@ -41,18 +38,8 @@ export function AppShell({
     username
   );
 
-  // Heartbeat: writes device presence every 10s.
-  useHeartbeat(userEmail, username);
-
   // Staff check: if admin removes this staff member, auto-logout instantly.
   useStaffCheck(userEmail, isAdmin);
-
-  // Chat drawer state.
-  const [chatOpen, setChatOpen] = useState(false);
-
-  // Unread badge count (driven by chat hook at the shell level so the bell
-  // in the header stays in sync regardless of whether the drawer is open).
-  const { totalUnread } = useChat(userEmail, username, null);
 
   // Lock/unlock popups are derived from transitions, tracked via a ref so
   // we don't setState synchronously inside a render-derived effect.
@@ -64,11 +51,9 @@ export function AppShell({
   useEffect(() => {
     const wasLocked = wasLockedRef.current;
     if (isLocked && !wasLocked) {
-      // locked → show lock popup
       setLockPopupOpen(true);
       wasLockedRef.current = true;
     } else if (!isLocked && wasLocked) {
-      // unlocked → show unlock popup
       setUnlockPopupOpen(true);
       wasLockedRef.current = false;
     }
@@ -82,7 +67,6 @@ export function AppShell({
           isAdmin={isAdmin}
           userEmail={userEmail}
           lockedTabs={lockedTabs}
-          unreadCount={totalUnread}
           onOpenNotifications={() => {}}
           onOpenChat={() => {}}
           hideActions
@@ -119,14 +103,6 @@ export function AppShell({
         </DialogContent>
       </Dialog>
 
-      {/* Chat + Notifications drawer */}
-      <ChatDrawer
-        open={chatOpen}
-        onOpenChange={setChatOpen}
-        myEmail={userEmail}
-        myUsername={username}
-      />
-
       <HelpTray />
       <EasterEgg />
     </div>
@@ -135,19 +111,13 @@ export function AppShell({
 
 function LockPopupContent({ metadata }: { metadata: LockMetadata | null }) {
   const type = metadata?.type ?? "basic";
-  const icon =
-    type === "maintenance" ? Wrench :
-    type === "suspension" ? TriangleAlert : Info;
-  const Icon = icon;
-  const title =
-    type === "maintenance" ? "Maintenance Mode" :
-    type === "suspension" ? "Access Review" : "Role Update";
-  const msg =
-    type === "maintenance"
-      ? "Admin is performing updates. Some tabs are temporarily locked."
-      : type === "suspension"
-      ? "Your access to certain features has been flagged for review. Please contact support."
-      : "Access to these tabs is currently restricted for your role.";
+  const Icon = type === "maintenance" ? Wrench : type === "suspension" ? TriangleAlert : Info;
+  const title = type === "maintenance" ? "Maintenance Mode" : type === "suspension" ? "Access Review" : "Role Update";
+  const msg = type === "maintenance"
+    ? "Admin is performing updates. Some tabs are temporarily locked."
+    : type === "suspension"
+    ? "Your access to certain features has been flagged for review. Please contact support."
+    : "Access to these tabs is currently restricted for your role.";
 
   return (
     <DialogHeader>

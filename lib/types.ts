@@ -148,3 +148,14 @@ export const TAB_LABELS: Record<TabName, string> = {
   scanner: "Scanner",
   settings: "Configuration",
 };
+
+/** Path: help_contacts/{autoId} — admin-managed contact list for help tray. */
+export interface HelpContact {
+  id: string;
+  role: string;
+  name: string;
+  phone?: string;
+  whatsapp?: string;
+  description: string;
+  createdAt: number;
+}
