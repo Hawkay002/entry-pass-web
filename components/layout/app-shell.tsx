@@ -103,7 +103,7 @@ export function AppShell({
         </DialogContent>
       </Dialog>
 
-      <HelpTray />
+      <HelpTray isAdmin={isAdmin} />
       <EasterEgg />
     </div>
   );

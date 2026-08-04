@@ -43,10 +43,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Activity Logs** — 11 colored action types. Redis-backed for zero Firestore quota usage
 - **Factory Reset** — Nukes the database with an immutable audit trail preserved
 
-### Communication
-- **Comms Center** — Global, team, and private channels with typing indicators, reply, edit, multi-select
-- **Notifications** — Live unread badge derived from chat messages
-- **Presence** — Heartbeat-based online/offline detection (30s threshold)
+### Help & Support
+- **Help Tray** — Slide-out contact directory. Admin can add/edit/delete contacts from the tray or Configuration page. Firestore-backed, realtime updates.
 
 ### UX
 - **Import / Export** — CSV, XLSX, PDF, TXT, DOC, JSON. Auto-dedupe by phone on import
@@ -121,8 +119,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
      | - settings   |   | - claims     |   | - activity |
      | - roles      |   | - sessions   |   |   logs     |
      | - locks      |   | - revocation |   | (1000 max) |
-     | - presence   |   |              |   |            |
-     | - chat       |   |              |   |            |
+     | - locks      |   |              |   |            |
+     | - contacts   |   |              |   |            |
      +--------------+   +--------------+   +------------+
 ```
 
@@ -289,9 +287,8 @@ Collections are created automatically on first write. The app uses:
 | `ticket_events_data/shared_event_db/settings/config` | Event settings (name, venue, deadline) |
 | `roles/{roleName}` | Dynamic staff roles |
 | `global_locks/{userEmail}` | Remote tab locks per staff |
-| `global_presence/{email}/devices/{deviceId}` | Heartbeat presence |
-| `communications` | Chat messages |
-| `typing_status/{channelKey}` | Typing indicators |
+| `global_locks/{userEmail}` | Remote tab locks per staff |
+| `help_contacts` | Admin-managed help tray contacts |
 | `audit_trail` | Reset-proof audit records |
 
 ---
@@ -315,7 +312,7 @@ The complete rules are in [`firestore.rules`](./firestore.rules). Key principles
 
 - **Default deny** - anything not explicitly allowed is blocked
 - **Admin-gated** - destructive operations require `request.auth.token.role == 'admin'`
-- **Self-only** - users read their own locks and presence
+- **Self-only** - users read their own locks
 - **Authenticated reads** - all app data requires sign-in
 
 Deploy with:
@@ -378,7 +375,7 @@ entry-pass-web/
 |   `-- page.tsx            # Landing page (public)
 |-- components/
 |   |-- admin/              # Admin panels (roles, RDM, maintenance, factory reset)
-|   |-- chat/               # Comms Center drawer
+|   |-- chat/               # (removed — chat feature deprecated)
 |   |-- guests/             # Import/Export modals
 |   |-- landing/            # Marketing page sections
 |   |-- layout/             # App shell, header, nav, starfield, help tray
@@ -487,7 +484,7 @@ interface GlobalLockDoc {
 | `removeStaffFromRole` | `actions/roles.ts` | Remove staff + revoke tokens |
 | `deleteRole` | `actions/roles.ts` | Delete a role entirely |
 | `importTickets` | `actions/import.ts` | Bulk import with phone dedupe |
-| `sendMessage` | `actions/chat.ts` | Send chat message (36h cleanup) |
+| `sendMessage` | `actions/chat.ts` | *(deprecated — comms removed)* |
 
 ---
 

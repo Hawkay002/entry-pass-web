@@ -24,9 +24,11 @@ import { cn } from "@/lib/utils";
 import { useContacts } from "@/hooks/use-contacts";
 import { createContact, deleteContact } from "@/app/actions/contacts";
 
-export function HelpTray() {
+export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
   const { contacts, loading } = useContacts();
   const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ role: "", name: "", phone: "", whatsapp: "", description: "" });
 
   return (
     <div
@@ -48,7 +50,18 @@ export function HelpTray() {
 
       {/* Content */}
       <div className="overflow-y-auto p-6 scrollbar-thin">
-        <h2 className="mb-3 text-lg font-semibold">Quick Help Tray</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Quick Help Tray</h2>
+          {isAdmin && (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-secondary/10 text-accent-secondary transition-colors hover:bg-accent-secondary/20"
+              title="Add contact"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
@@ -59,7 +72,15 @@ export function HelpTray() {
         ) : (
           <div className="space-y-3">
             {contacts.map((c) => (
-              <div key={c.id} className="rounded-xl bg-white/5 p-3">
+              <div key={c.id} className="relative rounded-xl bg-white/5 p-3">
+                {isAdmin && (
+                  <button
+                    onClick={() => deleteContact(c.id).then(r => r.ok ? toast.success("Removed") : toast.error("Failed"))}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
                 <p className="text-sm font-semibold">{c.role}</p>
                 <p className="text-sm text-accent-secondary">{c.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>
@@ -89,6 +110,55 @@ export function HelpTray() {
           </div>
         )}
       </div>
+
+      {/* Add contact dialog (admin only) */}
+      {isAdmin && (
+        <Dialog open={addOpen} onOpenChange={setAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Help Contact</DialogTitle>
+              <DialogDescription>This person will appear in the Quick Help Tray.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Role / Title</Label>
+                <Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="e.g. Event Manager" />
+              </div>
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91..." />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>WhatsApp</Label>
+                  <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="91..." />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What this person helps with" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button onClick={async () => {
+                if (!form.role.trim() || !form.name.trim()) { toast.error("Role and name required"); return; }
+                const res = await createContact({
+                  role: form.role, name: form.name,
+                  phone: form.phone || undefined, whatsapp: form.whatsapp || undefined,
+                  description: form.description || "Contact for assistance.",
+                });
+                if (res.ok) { toast.success("Contact added"); setForm({ role: "", name: "", phone: "", whatsapp: "", description: "" }); setAddOpen(false); }
+                else toast.error("Failed", { description: res.error });
+              }}>Add</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
