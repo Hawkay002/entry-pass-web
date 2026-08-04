@@ -231,7 +231,7 @@ function ScanResult({ outcome }: { outcome: ScanOutcome }) {
         <div className="flex items-start gap-2">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">✅ ACCESS GRANTED</p>
+            <p className="font-semibold">ACCESS GRANTED</p>
             <p>{outcome.name}</p>
             <p className="font-mono text-xs opacity-70">ID: {outcome.id}</p>
           </div>
@@ -241,7 +241,7 @@ function ScanResult({ outcome }: { outcome: ScanOutcome }) {
         <div className="flex items-start gap-2">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">⚠️ ALREADY SCANNED</p>
+            <p className="font-semibold">ALREADY SCANNED</p>
             <p>{outcome.name}</p>
             <p className="font-mono text-xs opacity-70">ID: {outcome.id}</p>
             <p className="text-xs opacity-70">
@@ -254,7 +254,7 @@ function ScanResult({ outcome }: { outcome: ScanOutcome }) {
         <div className="flex items-start gap-2">
           <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold">❌ INVALID TICKET</p>
+            <p className="font-semibold">INVALID TICKET</p>
             <p className="font-mono text-xs opacity-70">{outcome.id}</p>
             <p className="text-xs opacity-70">Not found in database</p>
           </div>
