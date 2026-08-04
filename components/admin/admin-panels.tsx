@@ -79,9 +79,9 @@ const LOCKABLE_TABS: { value: TabName; label: string }[] = [
 export function AdminPanels() {
   return (
     <div className="space-y-10 border-t border-white/5 pt-8">
+      <ContactManagementPanel />
       <MaintenancePanel />
       <RoleManagementPanel />
-      <ContactManagementPanel />
       <RemoteDeviceManagement />
       <FactoryResetPanel />
     </div>
