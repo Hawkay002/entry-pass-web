@@ -69,6 +69,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ---- Dynamic roles ----------------------------------------------------
+    // roles/{roleName} — authed read, admin write
+    match /roles/{roleId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // ---- Chat + typing (legacy, kept for backwards compat) ----------------
     match /communications/{msgId} {
       allow read, write: if isSignedIn();
