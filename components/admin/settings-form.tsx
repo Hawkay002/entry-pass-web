@@ -59,7 +59,12 @@ export function SettingsForm() {
 
   async function handleSave() {
     setSaving(true);
-    const res = await saveSettings({ name, place, deadline });
+    // Append the user's timezone offset to the deadline so the server
+    // (running in UTC on Vercel) interprets it in the user's local time.
+    const tzOffset = -new Date().getTimezoneOffset();
+    const offsetStr = `${tzOffset >= 0 ? "+" : ""}${String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, "0")}:${String(Math.abs(tzOffset) % 60).padStart(2, "0")}`;
+    const deadlineWithTz = deadline ? deadline + ":00" + offsetStr : deadline;
+    const res = await saveSettings({ name, place, deadline: deadlineWithTz });
     setSaving(false);
     if (res.ok) {
       toast.success("Configuration saved");
