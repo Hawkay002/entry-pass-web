@@ -196,11 +196,11 @@ export default function GuestsPage() {
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1 border-b border-white/5 pb-3 text-sm sm:justify-start">
         <span className="font-semibold">{tickets.length} <span className="text-muted-foreground font-normal">Total</span></span>
-        <span className="text-success-green font-semibold">{tickets.filter(t => t.status === "arrived").length} <span className="text-muted-foreground font-normal">Arrived</span></span>
-        <span className="text-amber-400 font-semibold">{tickets.filter(t => t.status === "coming-soon").length} <span className="text-muted-foreground font-normal">Pending</span></span>
-        <span className="text-destructive font-semibold">{tickets.filter(t => t.status === "absent").length} <span className="text-muted-foreground font-normal">Absent</span></span>
+        <span className="font-semibold text-success-green">{tickets.filter(t => t.status === "arrived").length} <span className="text-muted-foreground font-normal">Arrived</span></span>
+        <span className="font-semibold text-amber-400">{tickets.filter(t => t.status === "coming-soon").length} <span className="text-muted-foreground font-normal">Pending</span></span>
+        <span className="font-semibold text-destructive">{tickets.filter(t => t.status === "absent").length} <span className="text-muted-foreground font-normal">Absent</span></span>
       </div>
 
       {/* Search + filter/sort */}
