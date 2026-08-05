@@ -90,6 +90,11 @@ export default function ScannerPage() {
   });
   const [active, setActive] = useState(false);
   const [outcome, setOutcome] = useState<ScanOutcome>({ kind: "idle" });
+  const [haptics, setHaptics] = useState(true);
+
+  function vibrate(pattern: number | number[]) {
+    if (haptics) navigator.vibrate?.(pattern);
+  }
 
   // Keep the decode handler fresh on the context without re-creating the loop.
   useEffect(() => {
@@ -108,6 +113,7 @@ export default function ScannerPage() {
           id: ticketId,
         });
         playSuccess();
+        vibrate(100);
       } else if (res.outcome === "already") {
         setOutcome({
           kind: "already",
@@ -116,9 +122,11 @@ export default function ScannerPage() {
           status: res.ticket?.status ?? "",
         });
         playError();
+        vibrate([100, 50, 100]);
       } else {
         setOutcome({ kind: "invalid", id: ticketId });
         playError();
+        vibrate([100, 50, 100, 50, 100]);
       }
     };
   }, []);
@@ -197,6 +205,17 @@ export default function ScannerPage() {
           </>
         )}
       </Button>
+
+      {/* Haptic feedback toggle */}
+      <label className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={haptics}
+          onChange={(e) => setHaptics(e.target.checked)}
+          className="h-3.5 w-3.5 accent-accent-secondary"
+        />
+        Haptic Feedback
+      </label>
 
       <ScanResult outcome={outcome} />
     </div>

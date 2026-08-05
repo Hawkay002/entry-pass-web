@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,7 @@ export function SettingsForm() {
                 : "—"}
             </span>
           </p>
+          {settings.deadline && <DeadlineCountdown deadline={settings.deadline} />}
         </div>
       </CardContent>
 
@@ -164,5 +165,45 @@ export function SettingsForm() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+function DeadlineCountdown({ deadline }: { deadline: string }) {
+  const [remaining, setRemaining] = useState("");
+  const [passed, setPassed] = useState(false);
+
+  useEffect(() => {
+    function update() {
+      const ms = new Date(deadline).getTime() - Date.now();
+      if (ms <= 0) {
+        setPassed(true);
+        setRemaining("");
+        return;
+      }
+      setPassed(false);
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      setRemaining(`${h}h ${m}m ${s}s`);
+    }
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [deadline]);
+
+  if (passed) {
+    return (
+      <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">
+        <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+        Deadline Passed
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+      Starts in {remaining}
+    </div>
   );
 }

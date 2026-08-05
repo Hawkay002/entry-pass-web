@@ -67,7 +67,7 @@ export function AppNav({
   const row1 = visible.filter((t) => t.href !== "/settings" && !t.adminOnly);
   const row2 = visible.filter((t) => t.adminOnly || t.href === "/settings");
 
-  const renderTab = (tab: NavTab) => {
+    const renderTab = (tab: NavTab) => {
     const locked =
       tab.tabKey !== undefined && lockedTabs.includes(tab.tabKey);
     const active = pathname === tab.href;
@@ -78,6 +78,7 @@ export function AppNav({
         aria-disabled={locked || undefined}
         onClick={(e) => {
           if (locked) e.preventDefault();
+          if (typeof window !== "undefined") localStorage.setItem("lastTab", tab.href);
         }}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors",

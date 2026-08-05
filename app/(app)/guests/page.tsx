@@ -5,7 +5,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { LockedTab } from "@/components/layout/locked-tab";
 import { useLockedTabs } from "@/components/layout/locked-tabs-context";
-import { Loader2, Search, Trash2, Filter, Eye } from "lucide-react";
+import { Loader2, Search, Trash2, Filter, Eye, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,6 +195,14 @@ export default function GuestsPage() {
         </div>
       </div>
 
+      {/* Summary bar */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-white/5 pb-3 text-sm">
+        <span className="font-semibold">{tickets.length} <span className="text-muted-foreground font-normal">Total</span></span>
+        <span className="text-success-green">{tickets.filter(t => t.status === "arrived").length} <span className="text-muted-foreground">Arrived</span></span>
+        <span className="text-amber-400">{tickets.filter(t => t.status === "coming-soon").length} <span className="text-muted-foreground">Pending</span></span>
+        <span className="text-destructive">{tickets.filter(t => t.status === "absent").length} <span className="text-muted-foreground">Absent</span></span>
+      </div>
+
       {/* Search + filter/sort */}
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
@@ -305,14 +313,30 @@ export default function GuestsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                  Loading data...
+                <TableCell colSpan={8} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="text-sm">Loading guests...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 && tickets.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Users className="h-10 w-10 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">No guests yet.</p>
+                    <p className="text-xs text-muted-foreground/60">Issue a ticket or import guests to get started.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                  No guests found.
+                <TableCell colSpan={8} className="py-16 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Search className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">No guests match your filters.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
