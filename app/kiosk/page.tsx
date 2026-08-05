@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { QrScanner, type ScanOutcome } from "@/components/scanner/qr-scanner";
 import { cn } from "@/lib/utils";
-import { WifiOff, CloudUpload } from "lucide-react";
+import { WifiOff, CloudUpload, Delete, ArrowUpRight, LoaderCircle } from "lucide-react";
 import {
   cacheKioskTickets,
   getCachedKioskTickets,
@@ -147,14 +147,20 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
         {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
           <KeypadButton key={d} onClick={() => press(d)}>{d}</KeypadButton>
         ))}
-        <KeypadButton onClick={() => press("del")} variant="ghost">⌫</KeypadButton>
+        <KeypadButton onClick={() => press("del")} variant="ghost">
+          <Delete className="h-7 w-7" />
+        </KeypadButton>
         <KeypadButton onClick={() => press("0")}>0</KeypadButton>
         <KeypadButton
           onClick={submit}
           disabled={entry.length < 4 || checking}
           variant="primary"
         >
-          {checking ? "…" : "OK"}
+          {checking ? (
+            <LoaderCircle className="h-7 w-7 animate-spin" />
+          ) : (
+            <ArrowUpRight className="h-7 w-7" />
+          )}
         </KeypadButton>
       </div>
 
@@ -371,6 +377,8 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
           onCode={handleCode}
           autoStart
           showControls={false}
+          facingMode="user"
+          mirror
           previewClassName="!max-w-[260px]"
         />
         <p className="mt-6 text-center text-sm text-white/50">

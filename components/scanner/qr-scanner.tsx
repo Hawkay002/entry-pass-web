@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
-import { Camera, CameraOff, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Camera, CameraOff, CheckCircle2, XCircle, AlertTriangle, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,10 @@ export interface QrScannerProps {
   showControls?: boolean;
   /** Haptic feedback on scan results. Default true. */
   haptics?: boolean;
+  /** Preferred camera: "environment" (back, default) or "user" (front). */
+  facingMode?: "environment" | "user";
+  /** Mirror the video preview (for a front/selfie camera). Default false. */
+  mirror?: boolean;
   /** Extra class for the video preview container. */
   previewClassName?: string;
   /** Called after each scan resolves (kiosk uses it to reset). */
@@ -83,6 +87,8 @@ export function QrScanner({
   autoStart = false,
   showControls = true,
   haptics: hapticsProp = true,
+  facingMode: facingModeProp = "environment",
+  mirror: mirrorProp = false,
   previewClassName,
   onScanResolved,
 }: QrScannerProps) {
@@ -97,6 +103,8 @@ export function QrScanner({
   const [active, setActive] = useState(false);
   const [outcome, setOutcome] = useState<ScanOutcome>({ kind: "idle" });
   const [haptics, setHaptics] = useState(hapticsProp);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">(facingModeProp);
+  const [canFlip, setCanFlip] = useState(false);
   // Keep latest callbacks in refs so the frame loop never goes stale.
   const onCodeRef = useRef(onCode);
   const hapticsRef = useRef(haptics);
@@ -130,25 +138,34 @@ export function QrScanner({
   }, [vibrate]);
 
   const startScan = useCallback(async () => {
+    // Try the preferred facing mode; if it's unavailable, fall back to any
+    // camera so the scanner still works on single-camera devices.
+    const tryGet = async (mode: "environment" | "user") =>
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: mode } });
+
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      const ctx = ctxRef.current;
-      ctx.stream = stream;
-      ctx.video = videoRef.current;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute("playsinline", "true");
-        await videoRef.current.play();
+      stream = await tryGet(facingMode);
+    } catch {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (err) {
+        setOutcome({ kind: "error", message: "Camera error: " + (err as Error).message });
+        return;
       }
-      setActive(true);
-      setOutcome({ kind: "searching" });
-      ctx.rafId = requestAnimationFrame(() => frameLoop(ctx));
-    } catch (err) {
-      setOutcome({ kind: "error", message: "Camera error: " + (err as Error).message });
     }
-  }, []);
+    const ctx = ctxRef.current;
+    ctx.stream = stream;
+    ctx.video = videoRef.current;
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.setAttribute("playsinline", "true");
+      await videoRef.current.play();
+    }
+    setActive(true);
+    setOutcome({ kind: "searching" });
+    ctx.rafId = requestAnimationFrame(() => frameLoop(ctx));
+  }, [facingMode]);
 
   const stopScan = useCallback(() => {
     const ctx = ctxRef.current;
@@ -159,6 +176,28 @@ export function QrScanner({
     if (videoRef.current) videoRef.current.srcObject = null;
     setActive(false);
     setOutcome({ kind: "idle" });
+  }, []);
+
+  // Flip between front/back camera. Only shown when the device actually has
+  // more than one video input (checked once on mount).
+  const switchCamera = useCallback(async () => {
+    const next = facingMode === "environment" ? "user" : "environment";
+    stopScan();
+    setFacingMode(next);
+  }, [facingMode, stopScan]);
+
+  useEffect(() => {
+    let active = true;
+    navigator.mediaDevices
+      ?.enumerateDevices?.()
+      .then((devices) => {
+        const cams = devices.filter((d) => d.kind === "videoinput").length;
+        if (active) setCanFlip(cams > 1);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Cleanup on unmount.
@@ -187,11 +226,25 @@ export function QrScanner({
           previewClassName
         )}
       >
-        <video ref={videoRef} className="h-full w-full object-cover" muted />
+        <video
+          ref={videoRef}
+          className={cn("h-full w-full object-cover", mirrorProp && "scale-x-[-1]")}
+          muted
+        />
         {!active && (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             <CameraOff className="h-10 w-10" />
           </div>
+        )}
+        {canFlip && active && (
+          <button
+            type="button"
+            onClick={switchCamera}
+            title="Switch camera"
+            className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition-colors hover:bg-black/80"
+          >
+            <SwitchCamera className="h-4 w-4" />
+          </button>
         )}
       </div>
 
