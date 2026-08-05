@@ -14,8 +14,5 @@ export const paths = {
   rolesCollection: "roles",
   locksCollection: "global_locks",
   adminSecurityDoc: "admin_settings/security",
-  communicationsCollection: "communications",
-  typingCollection: "typing_status",
-  presenceRoot: "global_presence",
   contactsCollection: "help_contacts",
 } as const;

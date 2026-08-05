@@ -93,32 +93,6 @@ export interface GlobalLockDoc {
   updatedAt: number;
 }
 
-export type ChannelType = "GLOBAL" | "TEAM" | "PRIVATE";
-
-export interface ChatReplyRef {
-  id: string;
-  sender: string;
-  text: string;
-}
-
-/** Path: communications/{autoId} */
-export interface ChatMessage {
-  id: string;
-  text: string;
-  senderEmail: string;
-  senderDisplay: string;
-  channelType: ChannelType;
-  target: string; // "ALL" for global, email for team, username for private
-  timestamp: number;
-  replyTo: ChatReplyRef | null;
-  isEdited: boolean;
-}
-
-/** Path: typing_status/{channelKey} — dynamic per-typing-user fields */
-export interface TypingStatus {
-  [username: string]: number; // epoch ms of last keystroke
-}
-
 /** Tabs that can be remotely locked by an admin. */
 export type TabName = "create" | "booked" | "scanner" | "settings";
 
