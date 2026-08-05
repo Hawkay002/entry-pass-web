@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authConfig } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/", "/login", "/api/login", "/api/logout", "/api/auto-absent"];
+const PUBLIC_PATHS = ["/", "/login", "/kiosk", "/api/login", "/api/logout", "/api/auto-absent", "/api/kiosk-checkin"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(
@@ -36,6 +36,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:mp3|png|svg|jpg|jpeg|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:mp3|png|svg|jpg|jpeg|webp|ico|webmanifest)$).*)",
   ],
 };

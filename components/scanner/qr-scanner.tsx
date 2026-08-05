@@ -1,0 +1,291 @@
+// components/scanner/qr-scanner.tsx — reusable camera QR scanner.
+// Extracted from app/(app)/scanner/page.tsx so both the admin scanner and
+// the public kiosk share the same decode loop, audio cues, and result UI.
+// The parent provides the validation logic via onCode.
+
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
+import { Camera, CameraOff, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export type ScanOutcome =
+  | { kind: "idle" }
+  | { kind: "searching" }
+  | { kind: "granted"; name: string; id: string }
+  | { kind: "already"; name: string; id: string; status: string }
+  | { kind: "invalid"; id: string }
+  | { kind: "error"; message: string };
+
+export interface QrScannerProps {
+  /** Validate a decoded QR string. Return the outcome to display. */
+  onCode: (data: string) => Promise<ScanOutcome>;
+  /** Auto-activate the camera on mount (kiosk mode). Default false. */
+  autoStart?: boolean;
+  /** Show the Activate/Deactivate button + haptics toggle. Default true. */
+  showControls?: boolean;
+  /** Haptic feedback on scan results. Default true. */
+  haptics?: boolean;
+  /** Extra class for the video preview container. */
+  previewClassName?: string;
+  /** Called after each scan resolves (kiosk uses it to reset). */
+  onScanResolved?: () => void;
+}
+
+interface ScanCtx {
+  video: HTMLVideoElement | null;
+  stream: MediaStream | null;
+  rafId: number | null;
+  cooldown: boolean;
+  onCode: (data: string) => void;
+}
+
+// Module-scope frame loop. Takes explicit deps via ctx so there are no
+// closures over component state and no ref writes during render.
+const scanCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+const scanCtx2d = scanCanvas?.getContext("2d", { willReadFrequently: true }) ?? null;
+const MAX_SCAN_DIM = 480;
+
+function frameLoop(ctx: ScanCtx) {
+  const video = ctx.video;
+  if (!video || !ctx.stream) return;
+
+  if (video.readyState === video.HAVE_ENOUGH_DATA && scanCtx2d) {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (vw > 0 && vh > 0) {
+      const scale = Math.min(1, MAX_SCAN_DIM / Math.max(vw, vh));
+      const sw = Math.round(vw * scale);
+      const sh = Math.round(vh * scale);
+      scanCanvas!.width = sw;
+      scanCanvas!.height = sh;
+      scanCtx2d.drawImage(video, 0, 0, sw, sh);
+      const imageData = scanCtx2d.getImageData(0, 0, sw, sh);
+      const code = jsQR(imageData.data, sw, sh, { inversionAttempts: "dontInvert" });
+      if (code && !ctx.cooldown) {
+        ctx.cooldown = true;
+        ctx.onCode(code.data);
+        setTimeout(() => {
+          ctx.cooldown = false;
+        }, 3000);
+      }
+    }
+  }
+  if (ctx.stream) {
+    ctx.rafId = requestAnimationFrame(() => frameLoop(ctx));
+  }
+}
+
+export function QrScanner({
+  onCode,
+  autoStart = false,
+  showControls = true,
+  haptics: hapticsProp = true,
+  previewClassName,
+  onScanResolved,
+}: QrScannerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const ctxRef = useRef<ScanCtx>({
+    video: null,
+    stream: null,
+    rafId: null,
+    cooldown: false,
+    onCode: () => {},
+  });
+  const [active, setActive] = useState(false);
+  const [outcome, setOutcome] = useState<ScanOutcome>({ kind: "idle" });
+  const [haptics, setHaptics] = useState(hapticsProp);
+  // Keep latest callbacks in refs so the frame loop never goes stale.
+  const onCodeRef = useRef(onCode);
+  const hapticsRef = useRef(haptics);
+  const onScanResolvedRef = useRef(onScanResolved);
+  // Update refs in an effect (never during render).
+  useEffect(() => {
+    onCodeRef.current = onCode;
+    hapticsRef.current = haptics;
+    onScanResolvedRef.current = onScanResolved;
+  });
+
+  const vibrate = useCallback((pattern: number | number[]) => {
+    if (hapticsRef.current) navigator.vibrate?.(pattern);
+  }, []);
+
+  useEffect(() => {
+    ctxRef.current.onCode = async (ticketId: string) => {
+      setOutcome({ kind: "searching" });
+      const result = await onCodeRef.current(ticketId);
+      setOutcome(result);
+      if (result.kind === "granted") {
+        playSuccess();
+        vibrate(100);
+      } else if (result.kind !== "idle" && result.kind !== "searching") {
+        playError();
+        if (result.kind === "invalid") vibrate([100, 50, 100, 50, 100]);
+        else vibrate([100, 50, 100]);
+      }
+      onScanResolvedRef.current?.();
+    };
+  }, [vibrate]);
+
+  const startScan = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      const ctx = ctxRef.current;
+      ctx.stream = stream;
+      ctx.video = videoRef.current;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        await videoRef.current.play();
+      }
+      setActive(true);
+      setOutcome({ kind: "searching" });
+      ctx.rafId = requestAnimationFrame(() => frameLoop(ctx));
+    } catch (err) {
+      setOutcome({ kind: "error", message: "Camera error: " + (err as Error).message });
+    }
+  }, []);
+
+  const stopScan = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (ctx.rafId) cancelAnimationFrame(ctx.rafId);
+    ctx.rafId = null;
+    ctx.stream?.getTracks().forEach((t) => t.stop());
+    ctx.stream = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setActive(false);
+    setOutcome({ kind: "idle" });
+  }, []);
+
+  // Cleanup on unmount.
+  useEffect(() => {
+    const ctx = ctxRef.current;
+    return () => {
+      if (ctx.rafId) cancelAnimationFrame(ctx.rafId);
+      ctx.stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  // Auto-start the camera on mount (kiosk mode). setState here reflects the
+  // external camera state — a legitimate effect-driven side effect.
+  useEffect(() => {
+    if (!autoStart) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    startScan();
+    return () => stopScan();
+  }, [autoStart, startScan, stopScan]);
+
+  return (
+    <div className="text-center">
+      <div
+        className={cn(
+          "relative mx-auto aspect-square w-full max-w-[200px] overflow-hidden rounded-2xl border border-white/10 bg-black",
+          previewClassName
+        )}
+      >
+        <video ref={videoRef} className="h-full w-full object-cover" muted />
+        {!active && (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <CameraOff className="h-10 w-10" />
+          </div>
+        )}
+      </div>
+
+      {showControls && (
+        <>
+          <Button
+            onClick={active ? stopScan : startScan}
+            className="mx-auto mt-4"
+            variant={active ? "destructive" : "default"}
+          >
+            {active ? (
+              <>
+                <CameraOff className="mr-2 h-4 w-4" /> Deactivate Camera
+              </>
+            ) : (
+              <>
+                <Camera className="mr-2 h-4 w-4" /> Activate Camera
+              </>
+            )}
+          </Button>
+
+          <label className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={haptics}
+              onChange={(e) => setHaptics(e.target.checked)}
+              className="h-3.5 w-3.5 accent-accent-secondary"
+            />
+            Haptic Feedback
+          </label>
+        </>
+      )}
+
+      <ScanResult outcome={outcome} />
+    </div>
+  );
+}
+
+function ScanResult({ outcome }: { outcome: ScanOutcome }) {
+  if (outcome.kind === "idle") return null;
+
+  const styleMap: Record<string, string> = {
+    searching: "bg-white/10 text-white border-white/20",
+    granted: "bg-success-green/20 text-success-green border-success-green/40",
+    already: "bg-amber-500/20 text-amber-400 border-amber-500/40",
+    invalid: "bg-destructive/20 text-destructive border-destructive/40",
+    error: "bg-destructive/20 text-destructive border-destructive/40",
+  };
+  const key = outcome.kind === "searching" ? "searching" : outcome.kind;
+
+  return (
+    <div className={cn("mt-5 rounded-xl border p-4 text-left", styleMap[key])}>
+      {outcome.kind === "searching" && <p>Searching for QR Code...</p>}
+      {outcome.kind === "granted" && (
+        <div className="flex items-start gap-2">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">ACCESS GRANTED</p>
+            <p>{outcome.name}</p>
+            <p className="font-mono text-xs opacity-70">ID: {outcome.id}</p>
+          </div>
+        </div>
+      )}
+      {outcome.kind === "already" && (
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">ALREADY SCANNED</p>
+            <p>{outcome.name}</p>
+            <p className="font-mono text-xs opacity-70">ID: {outcome.id}</p>
+            <p className="text-xs opacity-70">Current status: {outcome.status}</p>
+          </div>
+        </div>
+      )}
+      {outcome.kind === "invalid" && (
+        <div className="flex items-start gap-2">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">INVALID TICKET</p>
+            <p className="font-mono text-xs opacity-70">{outcome.id}</p>
+            <p className="text-xs opacity-70">Not found in database</p>
+          </div>
+        </div>
+      )}
+      {outcome.kind === "error" && <p>{outcome.message}</p>}
+    </div>
+  );
+}
+
+function playSuccess() {
+  const audio = new Audio("/success.mp3");
+  audio.play().catch(() => {});
+}
+function playError() {
+  const audio = new Audio("/error.mp3");
+  audio.play().catch(() => {});
+}

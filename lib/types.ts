@@ -48,6 +48,7 @@ export type LogAction =
   | "LOGIN"
   | "TICKET_CREATE"
   | "SCAN_ENTRY"
+  | "SELF_CHECKIN"
   | "CONFIG_CHANGE"
   | "HELP_CALL"
   | "TICKET_DELETE"

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
+import { RegisterSw } from "@/components/layout/register-sw";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,10 +24,29 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Event Ticketing System",
   description: "Secure real-time event logistics and entry management.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Entry Pass",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0f0f0f",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -42,6 +62,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <RegisterSw />
         <Toaster theme="dark" position="top-right" richColors />
       </body>
     </html>

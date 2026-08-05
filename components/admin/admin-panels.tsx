@@ -6,8 +6,8 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench, ScanLine, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,7 +34,7 @@ import {
   removeStaffFromRole,
   deleteRole,
 } from "@/app/actions/roles";
-import { applyRemoteLocks, factoryReset, fetchAllLocks, fetchMaintenanceInfo, checkAndEndMaintenance, unlockStaff } from "@/app/actions/admin";
+import { applyRemoteLocks, factoryReset, fetchAllLocks, fetchMaintenanceInfo, checkAndEndMaintenance, unlockStaff, saveKioskPin, getKioskStatus } from "@/app/actions/admin";
 import { useRoles } from "@/hooks/use-roles";
 import type { LockReasonType, StaffMember, StaffRole, TabName } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -78,6 +78,7 @@ const LOCKABLE_TABS: { value: TabName; label: string }[] = [
 export function AdminPanels() {
   return (
     <div className="space-y-10 border-t border-white/5 pt-8">
+      <KioskPanel />
       <MaintenancePanel />
       <RoleManagementPanel />
       <RemoteDeviceManagement />
@@ -168,7 +169,7 @@ function MaintenancePanel() {
   }
 
   return (
-    <div>
+    <div className="border-t border-white/5 pt-8">
       <div className="mb-3 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
         <h3 className="text-lg font-semibold">Maintenance Mode</h3>
@@ -963,6 +964,129 @@ function RemoteDeviceManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ============== Kiosk (Self Check-in) ==============
+
+function KioskPanel() {
+  const [enabled, setEnabled] = useState(false);
+  const [pin, setPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load enabled status once on mount.
+  useEffect(() => {
+    let active = true;
+    getKioskStatus()
+      .then((res) => {
+        if (active && res.ok) setEnabled(res.enabled);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    const res = await saveKioskPin(pin);
+    setSaving(false);
+    if (res.ok) {
+      const isSetting = pin.replace(/\D/g, "").length >= 4;
+      setEnabled(isSetting);
+      setPin("");
+      toast.success(isSetting ? "Kiosk PIN saved" : "Kiosk disabled");
+    } else {
+      toast.error("Save failed", { description: res.error });
+    }
+  }
+
+  async function handleDisable() {
+    setSaving(true);
+    const res = await saveKioskPin("");
+    setSaving(false);
+    if (res.ok) {
+      setEnabled(false);
+      toast.success("Kiosk disabled");
+    } else {
+      toast.error("Failed to disable", { description: res.error });
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <ScanLine className="h-5 w-5 text-emerald-400" />
+        <h3 className="text-lg font-semibold">Self Check-in Kiosk</h3>
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Set a PIN to enable a public kiosk at <code className="rounded bg-white/10 px-1 py-0.5 text-xs">/kiosk</code> where guests
+        scan their own QR code on a mounted tablet. Leave empty to disable.
+      </p>
+
+      {enabled && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+          <span className="text-sm text-emerald-400">Kiosk enabled — PIN required to scan</span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[160px]">
+          <Input
+            type={showPin ? "text" : "password"}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="4-8 digit PIN"
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            onKeyDown={(e) => e.key === "Enter" && pin.length >= 4 && handleSave()}
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPin((s) => !s)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+            tabIndex={-1}
+          >
+            {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        <Button onClick={handleSave} disabled={saving || pin.length < 4}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {enabled ? "Update PIN" : "Enable Kiosk"}
+        </Button>
+        {enabled && (
+          <Button
+            variant="outline"
+            className="border-destructive text-destructive hover:bg-destructive/10"
+            onClick={handleDisable}
+            disabled={saving}
+          >
+            Disable
+          </Button>
+        )}
+        {enabled && (
+          <a
+            href="/kiosk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" /> Open Kiosk
+          </a>
+        )}
+      </div>
+
+      {!loaded && (
+        <p className="mt-3 text-xs text-muted-foreground">Loading status…</p>
+      )}
     </div>
   );
 }

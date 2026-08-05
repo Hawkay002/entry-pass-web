@@ -102,6 +102,61 @@ export async function validateTicket(
   };
 }
 
+/**
+ * Sync offline scans: for each id that is still coming-soon & unscanned,
+ * mark it arrived (attributed to the syncing staff member). Idempotent —
+ * ids already scanned (e.g. by admin meanwhile) are reported as "already".
+ * Returns a per-id outcome map for client reconciliation.
+ */
+export async function syncOfflineScans(
+  ids: string[]
+): Promise<
+  | { ok: true; results: Record<string, "granted" | "already" | "invalid"> }
+  | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const db = getAdminDb();
+  const results: Record<string, "granted" | "already" | "invalid"> = {};
+  let grantedCount = 0;
+
+  for (const id of ids) {
+    const snap = await db.collection(paths.ticketsCollection).doc(id).get();
+    if (!snap.exists) {
+      results[id] = "invalid";
+      continue;
+    }
+    const data = snap.data() as Record<string, unknown>;
+    const status = String(data.status ?? "coming-soon");
+    const scanned = Boolean(data.scanned);
+    const name = String(data.name ?? "");
+    if (status === "coming-soon" && !scanned) {
+      await snap.ref.update({
+        status: "arrived",
+        scanned: true,
+        scannedAt: Date.now(),
+        scannedBy: user.username,
+      });
+      results[id] = "granted";
+      grantedCount++;
+    } else {
+      results[id] = "already";
+      void name;
+    }
+  }
+
+  if (grantedCount > 0) {
+    await logAction(
+      user,
+      "SCAN_ENTRY",
+      `Synced ${grantedCount} offline scan(s) (offline)`
+    );
+  }
+
+  return { ok: true, results };
+}
+
 /** Bulk-delete tickets by id (admin only). Returns count deleted. */
 export async function deleteTickets(
   ids: string[]

@@ -95,6 +95,53 @@ export async function clearSettings(): Promise<{ ok: true } | { ok: false; error
   return { ok: true };
 }
 
+/**
+ * Save (or clear) the kiosk PIN. Empty string disables the public kiosk.
+ * Stored in the admin-only security doc (NOT the public settings doc) so
+ * regular staff cannot read it via the client SDK.
+ */
+export async function saveKioskPin(
+  pin: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+  if (user.role !== "admin")
+    return { ok: false, error: "Admin role required." };
+
+  // Normalize: digits only, 4-8 chars. Empty = disabled.
+  const clean = pin.replace(/\D/g, "").slice(0, 8);
+  if (clean.length > 0 && clean.length < 4)
+    return { ok: false, error: "PIN must be 4-8 digits." };
+
+  await getAdminDb()
+    .doc(paths.adminSecurityDoc)
+    .set({ kioskPin: clean }, { merge: true });
+
+  await logAction(
+    user,
+    "CONFIG_CHANGE",
+    clean ? "Kiosk PIN set" : "Kiosk PIN disabled"
+  );
+  return { ok: true };
+}
+
+/**
+ * Returns whether the kiosk PIN is set (admin-only). Does NOT return the
+ * actual PIN value — the admin panel only needs to know enabled/disabled.
+ */
+export async function getKioskStatus(): Promise<
+  { ok: true; enabled: boolean } | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+  if (user.role !== "admin")
+    return { ok: false, error: "Admin role required." };
+
+  const snap = await getAdminDb().doc(paths.adminSecurityDoc).get();
+  const pin = (snap.data()?.kioskPin as string | undefined) ?? "";
+  return { ok: true, enabled: pin.length >= 4 };
+}
+
 // ---------------- Staff-user management ----------------
 
 export async function fetchStaffUsers(): Promise<

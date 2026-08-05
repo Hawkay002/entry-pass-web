@@ -49,6 +49,32 @@ export async function logActionToRedis(
   }
 }
 
+/**
+ * Write a kiosk (self check-in) log entry. The public kiosk endpoint has no
+ * authenticated AppUser, so this writes a synthetic entry attributed to the
+ * KIOSK "user". Used by /api/kiosk-checkin.
+ */
+export async function logKioskAction(
+  action: LogAction,
+  details: string
+): Promise<void> {
+  try {
+    const redis = getRedis();
+    const entry: LogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: Date.now(),
+      userEmail: "kiosk",
+      username: "KIOSK",
+      action,
+      details,
+    };
+    await redis.lpush("activity_logs", JSON.stringify(entry));
+    await redis.ltrim("activity_logs", 0, MAX_LOGS - 1);
+  } catch (err) {
+    console.error("[redis-log] kiosk write failed:", err);
+  }
+}
+
 /** Fetch the latest N log entries from Redis. */
 export async function fetchLogsFromRedis(
   count = 500

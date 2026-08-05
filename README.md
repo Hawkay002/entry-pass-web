@@ -55,6 +55,10 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Deadline Countdown** — Live timer in Settings showing time remaining until deadline
 - **Landing Page** — Industrial-grade marketing page with orbiting tech icons, live terminal feed, bento grid
 
+### Offline & Kiosk
+- **PWA / Offline Scanner** — Installable app (manifest + service worker). Scanner caches tickets in IndexedDB and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
+- **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`.
+
 ---
 
 ## Tech Stack
@@ -209,6 +213,17 @@ In `app/api/login/route.ts` and `lib/firebase/server-auth.ts`, update the `ADMIN
 ```ts
 const ADMIN_EMAILS = ["your-email@gmail.com"];
 ```
+
+### Step 5b: Enable the Self Check-in Kiosk (optional)
+
+The public `/kiosk` route is disabled by default. To enable it:
+
+1. Sign in as admin → **Configuration** → **Self Check-in Kiosk**
+2. Enter a 4–8 digit PIN → **Enable Kiosk**
+3. Open `/kiosk` on a mounted tablet (e.g. `https://etsweb.vercel.app/kiosk`)
+4. Guests enter the PIN once, then scan their own QR code
+
+The PIN is stored in the admin-only `admin_settings/security` Firestore doc — regular staff cannot read it. To disable the kiosk instantly, clear the PIN (or change it). Kiosk scans are attributed to `KIOSK` and logged as `SELF_CHECKIN` in the Activity Logs.
 
 ### Step 5: Deploy Firestore Security Rules
 
@@ -462,6 +477,7 @@ interface GlobalLockDoc {
 | `/api/login` | POST | Verify Firebase ID token, create httpOnly session cookie |
 | `/api/logout` | POST | Clear session cookie |
 | `/api/auto-absent` | POST | Check deadline, mark coming-soon tickets as absent |
+| `/api/kiosk-checkin` | POST | Public self check-in — validates a PIN + marks a ticket arrived (logged as `SELF_CHECKIN`) |
 
 **Login flow:**
 1. Client signs in with Firebase (email/password or Google popup)
@@ -478,8 +494,11 @@ interface GlobalLockDoc {
 | `validateTicket` | `actions/tickets.ts` | Scan validation (granted/already/invalid) |
 | `deleteOneTicket` | `actions/tickets.ts` | Delete a single ticket |
 | `autoMarkAbsent` | `actions/tickets.ts` | Deadline-based absent marking |
+| `syncOfflineScans` | `actions/tickets.ts` | Sync queued offline scans on reconnect (idempotent) |
 | `saveSettings` | `actions/admin.ts` | Save event configuration |
 | `clearSettings` | `actions/admin.ts` | Clear event settings |
+| `saveKioskPin` | `actions/admin.ts` | Set/clear the kiosk PIN (admin-only doc) |
+| `getKioskStatus` | `actions/admin.ts` | Whether the kiosk PIN is enabled (no value exposed) |
 | `factoryReset` | `actions/admin.ts` | Wipe database (preserves audit trail) |
 | `applyRemoteLocks` | `actions/admin.ts` | Lock/unlock staff tabs |
 | `unlockStaff` | `actions/admin.ts` | Fully unlock a staff member |
