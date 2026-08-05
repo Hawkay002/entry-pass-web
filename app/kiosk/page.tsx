@@ -157,7 +157,7 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
           variant="primary"
         >
           {checking ? (
-            <LoaderCircle className="h-7 w-7 animate-spin" />
+            <LoaderCircle className="h-7 w-7 !animate-spin" />
           ) : (
             <ArrowUpRight className="h-7 w-7" />
           )}
