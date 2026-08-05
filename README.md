@@ -389,16 +389,17 @@ entry-pass-web/
 |   |   `-- logs/           # Activity Logs (admin only)
 |   |-- (auth)/login/       # Login page (email + Google)
 |   |-- actions/            # Server Actions (CRUD + business logic)
-|   |-- api/                # Route Handlers (login, logout, auto-absent)
-|   |-- layout.tsx          # Root layout (fonts, toaster, theme)
+|   |-- api/                # Route Handlers (login, logout, auto-absent, kiosk-checkin)
+|   |-- kiosk/              # Public self check-in kiosk (PIN-gated)
+|   |-- layout.tsx          # Root layout (fonts, toaster, theme, SW registration)
 |   `-- page.tsx            # Landing page (public)
 |-- components/
-|   |-- admin/              # Admin panels (roles, RDM, maintenance, factory reset)
-|   |-- chat/               # (removed — chat feature deprecated)
+|   |-- admin/              # Admin panels (roles, RDM, maintenance, kiosk, factory reset)
 |   |-- guests/             # Import/Export modals
 |   |-- landing/            # Marketing page sections
-|   |-- layout/             # App shell, header, nav, starfield, help tray
+|   |-- layout/             # App shell, header, nav, starfield, help tray, SW registration
 |   |-- logs/               # Activity logs table
+|   |-- scanner/            # Shared QR scanner (admin + kiosk)
 |   |-- tickets/            # Ticket card + view modal
 |   `-- ui/                 # shadcn/ui primitives (16 components)
 |-- hooks/                  # React hooks (realtime Firestore listeners)
@@ -408,11 +409,12 @@ entry-pass-web/
 |   |-- env.ts              # Typed + validated env access
 |   |-- types.ts            # Shared data model
 |   |-- paths.ts            # Firestore collection paths
-|   |-- redis-log.ts        # Upstash activity logging
+|   |-- redis-log.ts        # Upstash activity logging (incl. kiosk)
+|   |-- offline-db.ts       # IndexedDB offline cache + scan queue
 |   |-- guest-list.ts       # Filter/sort helpers (pure)
 |   |-- import-export.ts    # Parse + format (CSV/XLSX/PDF/TXT/DOC/JSON)
 |   `-- whatsapp.ts         # Ticket snapshot -> WhatsApp share
-|-- public/                 # Static assets (SVGs, audio)
+|-- public/                 # Static assets (icons, PWA manifest + service worker, audio)
 |-- scripts/                # Dev utilities (jose fix, claim setup)
 |-- firestore.rules         # Security rules
 |-- proxy.ts                # Edge middleware (cookie gate)
@@ -507,7 +509,6 @@ interface GlobalLockDoc {
 | `removeStaffFromRole` | `actions/roles.ts` | Remove staff + revoke tokens |
 | `deleteRole` | `actions/roles.ts` | Delete a role entirely |
 | `importTickets` | `actions/import.ts` | Bulk import with phone dedupe |
-| `sendMessage` | `actions/chat.ts` | *(deprecated — comms removed)* |
 
 ---
 
