@@ -24,8 +24,10 @@ export interface QrScannerProps {
   onCode: (data: string) => Promise<ScanOutcome>;
   /** Auto-activate the camera on mount (kiosk mode). Default false. */
   autoStart?: boolean;
-  /** Show the Activate/Deactivate button + haptics toggle. Default true. */
+  /** Show the Activate/Deactivate button. Default true. */
   showControls?: boolean;
+  /** Show the internal haptics toggle (parent renders its own when false). Default true. */
+  showHapticsToggle?: boolean;
   /** Haptic feedback on scan results. Default true. */
   haptics?: boolean;
   /** Preferred camera: "environment" (back, default) or "user" (front). */
@@ -84,6 +86,7 @@ export function QrScanner({
   onCode,
   autoStart = false,
   showControls = true,
+  showHapticsToggle = true,
   haptics: hapticsProp = true,
   facingMode: facingModeProp = "environment",
   previewClassName,
@@ -100,22 +103,30 @@ export function QrScanner({
   const [active, setActive] = useState(false);
   const [outcome, setOutcome] = useState<ScanOutcome>({ kind: "idle" });
   const [haptics, setHaptics] = useState(hapticsProp);
+  // Sync from the parent prop when controlled externally.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHaptics(hapticsProp);
+  }, [hapticsProp]);
   const [facingMode, setFacingMode] = useState<"environment" | "user">(facingModeProp);
   const [canFlip, setCanFlip] = useState(false);
   // Keep latest callbacks in refs so the frame loop never goes stale.
   const onCodeRef = useRef(onCode);
-  const hapticsRef = useRef(haptics);
   const onScanResolvedRef = useRef(onScanResolved);
-  // Update refs in an effect (never during render).
   useEffect(() => {
     onCodeRef.current = onCode;
-    hapticsRef.current = haptics;
     onScanResolvedRef.current = onScanResolved;
   });
 
-  const vibrate = useCallback((pattern: number | number[]) => {
-    if (hapticsRef.current) navigator.vibrate?.(pattern);
-  }, []);
+  // Vibrate only when enabled. Depends on `haptics` directly (not a ref) so
+  // the closure always has the current value — an uncheck takes effect on
+  // the very next scan, with no ref-sync timing gap.
+  const vibrate = useCallback(
+    (pattern: number | number[]) => {
+      if (haptics) navigator.vibrate?.(pattern);
+    },
+    [haptics]
+  );
 
   useEffect(() => {
     ctxRef.current.onCode = async (ticketId: string) => {
@@ -263,15 +274,17 @@ export function QrScanner({
             )}
           </Button>
 
-          <label className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={haptics}
-              onChange={(e) => setHaptics(e.target.checked)}
-              className="h-3.5 w-3.5 accent-accent-secondary"
-            />
-            Haptic Feedback
-          </label>
+          {showHapticsToggle && (
+            <label className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={haptics}
+                onChange={(e) => setHaptics(e.target.checked)}
+                className="h-3.5 w-3.5 accent-accent-secondary"
+              />
+              Haptic Feedback
+            </label>
+          )}
         </>
       )}
 

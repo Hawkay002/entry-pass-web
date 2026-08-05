@@ -35,6 +35,7 @@ export default function ScannerPage() {
   );
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [haptics, setHaptics] = useState(true);
 
   // Warm + periodically refresh the IndexedDB ticket cache. One-shot on mount
   // (so the cache is ready immediately), then every 5 minutes. Skipped while
@@ -151,9 +152,21 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="glass-panel mx-auto max-w-lg p-6 text-center">
-      <h2 className="mb-4 text-lg font-semibold">Entry Validation</h2>
+    <div className="glass-panel mx-auto max-w-lg p-6">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Entry Validation</h2>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={haptics}
+            onChange={(e) => setHaptics(e.target.checked)}
+            className="h-3.5 w-3.5 accent-accent-secondary"
+          />
+          Haptic Feedback
+        </label>
+      </div>
 
+      <div className="text-center">
       {/* Offline / sync status banner */}
       {!online && (
         <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
@@ -170,7 +183,12 @@ export default function ScannerPage() {
         </div>
       )}
 
-      <QrScanner onCode={handleCode} />
+      <QrScanner
+        onCode={handleCode}
+        haptics={haptics}
+        showHapticsToggle={false}
+      />
+      </div>
     </div>
   );
 }
