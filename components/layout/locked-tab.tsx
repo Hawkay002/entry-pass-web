@@ -11,7 +11,7 @@ export function LockedTab({ tabName }: { tabName: string }) {
       </div>
       <h2 className="text-xl font-semibold">{tabName} is Locked</h2>
       <p className="max-w-sm text-sm text-muted-foreground">
-        This tab has been restricted by the administrator. You don't have
+        This tab has been restricted by the administrator. You don&apos;t have
         access to this feature right now. If you believe this is a mistake,
         please contact the administrator.
       </p>

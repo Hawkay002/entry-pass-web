@@ -59,9 +59,11 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
   // Refs so the keydown handler always sees the latest values without
   // re-registering on every keystroke.
   const entryRef = useRef(entry);
-  entryRef.current = entry;
   const checkingRef = useRef(checking);
-  checkingRef.current = checking;
+  useEffect(() => {
+    entryRef.current = entry;
+    checkingRef.current = checking;
+  });
 
   function press(d: string) {
     setError("");
@@ -100,7 +102,9 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
 
   // Physical keyboard support: numpad + number row + Backspace + Enter.
   const submitRef = useRef(submit);
-  submitRef.current = submit;
+  useEffect(() => {
+    submitRef.current = submit;
+  });
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -231,9 +235,9 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
     return () => clearInterval(interval);
   }, [refreshCache]);
 
-  // Track connectivity.
+  // Track connectivity. `online` is lazy-init'd from navigator.onLine above,
+  // so this effect only wires the event listeners (no synchronous setState).
   useEffect(() => {
-    setOnline(navigator.onLine);
     const on = () => setOnline(true);
     const off = () => setOnline(false);
     window.addEventListener("online", on);

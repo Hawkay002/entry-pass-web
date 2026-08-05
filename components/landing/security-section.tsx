@@ -30,7 +30,7 @@ export function SecuritySection() {
             <ShieldCheck className="h-7 w-7 text-accent-secondary" />
           </div>
           <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Security isn't an add-on
+            Security isn&apos;t an add-on
           </h2>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
             The original app had client-side email checks and plaintext passwords.

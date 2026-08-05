@@ -27,12 +27,10 @@ export default async function AppLayout({
   const settingsData = settingsSnap.data();
   const deadline = settingsData?.deadline as string | undefined;
 
-  console.log("[auto-absent] deadline:", deadline, "now:", Date.now());
-
   if (deadline) {
     const deadlineMs = new Date(deadline).getTime();
+    // eslint-disable-next-line react-hooks/purity -- server component, Date.now() is fine here
     const now = Date.now();
-    console.log("[auto-absent] deadlineMs:", deadlineMs, "now:", now, "passed:", now > deadlineMs);
 
     if (!isNaN(deadlineMs) && now > deadlineMs) {
       const snap = await db
@@ -40,13 +38,10 @@ export default async function AppLayout({
         .where("status", "==", "coming-soon")
         .get();
 
-      console.log("[auto-absent] coming-soon tickets:", snap.size);
-
       if (!snap.empty) {
         const batch = db.batch();
         snap.docs.forEach((d) => batch.update(d.ref, { status: "absent" }));
         await batch.commit();
-        console.log(`[auto-absent] ✅ Marked ${snap.size} ticket(s) as absent`);
       }
     }
   }

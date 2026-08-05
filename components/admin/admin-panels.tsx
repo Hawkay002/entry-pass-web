@@ -420,7 +420,7 @@ function RoleManagementPanel() {
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete Role?</DialogTitle>
             <DialogDescription>
-              Permanently delete "{deleteRoleConfirm}" and remove all{" "}
+              Permanently delete &ldquo;{deleteRoleConfirm}&rdquo; and remove all{" "}
               {roles.find((r) => r.id === deleteRoleConfirm)?.staff.length ?? 0} staff members
               from this role. This cannot be undone.
             </DialogDescription>

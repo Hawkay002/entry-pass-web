@@ -182,7 +182,7 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Contact</DialogTitle>
-              <DialogDescription>Update this contact's details.</DialogDescription>
+              <DialogDescription>Update this contact&apos;s details.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-2">
