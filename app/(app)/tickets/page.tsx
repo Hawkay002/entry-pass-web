@@ -149,7 +149,7 @@ export default function TicketsPage() {
     <div className="grid gap-6 md:grid-cols-2">
       <Card className="glass-panel">
         <CardHeader>
-          <CardTitle>New Guest Entry</CardTitle>
+          <CardTitle className="text-lg font-semibold">New Guest Entry</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

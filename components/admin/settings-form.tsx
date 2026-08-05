@@ -77,7 +77,7 @@ export function SettingsForm() {
   return (
     <Card className="glass-panel">
       <CardHeader>
-        <CardTitle>Configuration</CardTitle>
+        <CardTitle className="text-lg font-semibold">Configuration</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
