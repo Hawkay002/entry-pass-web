@@ -378,7 +378,6 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
           autoStart
           showControls={false}
           facingMode="user"
-          mirror
           previewClassName="!max-w-[260px]"
         />
         <p className="mt-6 text-center text-sm text-white/50">

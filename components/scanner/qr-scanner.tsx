@@ -30,8 +30,6 @@ export interface QrScannerProps {
   haptics?: boolean;
   /** Preferred camera: "environment" (back, default) or "user" (front). */
   facingMode?: "environment" | "user";
-  /** Mirror the video preview (for a front/selfie camera). Default false. */
-  mirror?: boolean;
   /** Extra class for the video preview container. */
   previewClassName?: string;
   /** Called after each scan resolves (kiosk uses it to reset). */
@@ -88,7 +86,6 @@ export function QrScanner({
   showControls = true,
   haptics: hapticsProp = true,
   facingMode: facingModeProp = "environment",
-  mirror: mirrorProp = false,
   previewClassName,
   onScanResolved,
 }: QrScannerProps) {
@@ -228,7 +225,7 @@ export function QrScanner({
       >
         <video
           ref={videoRef}
-          className={cn("h-full w-full object-cover", mirrorProp && "scale-x-[-1]")}
+          className={cn("h-full w-full object-cover", facingMode === "user" && "scale-x-[-1]")}
           muted
         />
         {!active && (
