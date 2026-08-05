@@ -49,6 +49,10 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 ### UX
 - **Import / Export** — CSV, XLSX, PDF, TXT, DOC, JSON. Auto-dedupe by phone on import
 - **Mobile-First** — Fully responsive. 2-row nav on mobile. Fixed 380px ticket dimensions across devices
+- **Guest List Summary Bar** — Live counts: Total, Arrived, Pending, Absent with color coding
+- **Scanner Haptics** — Vibration feedback on scan results with toggle (default ON)
+- **Remember Last Tab** — Returns to your last visited tab on page refresh
+- **Deadline Countdown** — Live timer in Settings showing time remaining until deadline
 - **Landing Page** — Industrial-grade marketing page with orbiting tech icons, live terminal feed, bento grid
 
 ---
