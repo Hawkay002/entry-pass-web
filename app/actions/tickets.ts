@@ -8,8 +8,35 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { paths } from "@/lib/paths";
 import { getAppUser } from "@/lib/firebase/server-auth";
 import { logAction } from "@/lib/firebase/log";
-import type { Gender, TicketType } from "@/lib/types";
+import type { Gender, TicketStatus, TicketType } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+
+/**
+ * Fetch the full ticket list for offline-cache warming on the scanner.
+ * Returns ONLY the fields the offline validator needs (id/name/status/scanned)
+ * — no phone/PII — and is used by a one-shot + interval refresh instead of an
+ * always-on realtime listener, which cuts Firestore reads to ~1 query / 5 min.
+ */
+export async function getTicketsForOfflineCache(): Promise<
+  { ok: true; tickets: { id: string; name: string; status: TicketStatus; scanned: boolean }[] }
+  | { ok: false; error: string }
+> {
+  const user = await getAppUser();
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const snap = await getAdminDb().collection(paths.ticketsCollection).get();
+  const tickets = snap.docs.map((d) => {
+    const data = d.data() as Record<string, unknown>;
+    const status = String(data.status ?? "coming-soon");
+    return {
+      id: d.id,
+      name: String(data.name ?? ""),
+      status: (status === "arrived" || status === "absent" ? status : "coming-soon") as TicketStatus,
+      scanned: Boolean(data.scanned),
+    };
+  });
+  return { ok: true, tickets };
+}
 
 /** Create a new ticket. Returns the new ticket id, or null on auth failure. */
 export async function createTicket(input: {

@@ -11,32 +11,46 @@ import { WifiOff, CloudUpload } from "lucide-react";
 import { LockedTab } from "@/components/layout/locked-tab";
 import { useLockedTabs } from "@/components/layout/locked-tabs-context";
 import { QrScanner, type ScanOutcome } from "@/components/scanner/qr-scanner";
-import { validateTicket, syncOfflineScans } from "@/app/actions/tickets";
-import { useTickets } from "@/hooks/use-tickets";
+import { validateTicket, syncOfflineScans, getTicketsForOfflineCache } from "@/app/actions/tickets";
 import {
   cacheTickets,
   getCachedTickets,
+  markCachedScanned,
   enqueueScan,
   getPendingCount,
   clearPendingScans,
   getPendingScans,
 } from "@/lib/offline-db";
 
+// Refresh the offline cache every 5 minutes instead of an always-on realtime
+// listener. One snapshot covers ~5 min of scanning; a single ticket lookup at
+// validation time catches anything newer. This cuts Firestore reads to a
+// fraction of what a live onSnapshot would consume.
+const CACHE_REFRESH_MS = 5 * 60 * 1000;
+
 export default function ScannerPage() {
   const lockedTabs = useLockedTabs();
-  const { tickets } = useTickets();
   const [online, setOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
-  // Keep the IndexedDB ticket cache warm while the scanner page is open.
+  // Warm + periodically refresh the IndexedDB ticket cache. One-shot on mount
+  // (so the cache is ready immediately), then every 5 minutes. Skipped while
+  // offline — the cached snapshot is what we scan against in that case.
+  const refreshCache = useCallback(async () => {
+    const res = await getTicketsForOfflineCache();
+    if (res.ok) await cacheTickets(res.tickets);
+  }, []);
+
   useEffect(() => {
-    if (tickets.length > 0) {
-      cacheTickets(tickets).catch(() => {});
-    }
-  }, [tickets]);
+    refreshCache().catch(() => {});
+    const interval = setInterval(() => {
+      if (navigator.onLine) refreshCache().catch(() => {});
+    }, CACHE_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [refreshCache]);
 
   // Drain the offline queue when connectivity returns.
   const drainQueue = useCallback(async () => {
@@ -117,6 +131,8 @@ export default function ScannerPage() {
       }
       if (t.status === "coming-soon" && !t.scanned) {
         await enqueueScan({ id: ticketId, name: t.name, timestamp: Date.now() });
+        // Reflect the grant locally so a repeat offline scan returns "already".
+        await markCachedScanned(ticketId);
         setPending((p) => p + 1);
         return { kind: "granted", name: t.name, id: ticketId };
       }

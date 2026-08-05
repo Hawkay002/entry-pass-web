@@ -6,11 +6,22 @@
 
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { QrScanner, type ScanOutcome } from "@/components/scanner/qr-scanner";
 import { cn } from "@/lib/utils";
+import { WifiOff, CloudUpload } from "lucide-react";
+import {
+  cacheKioskTickets,
+  getCachedKioskTickets,
+  markKioskCachedScanned,
+  enqueueKioskScan,
+  clearKioskPendingScans,
+  getKioskPendingScans,
+  getKioskPendingCount,
+} from "@/lib/kiosk-db";
 
 const SESSION_KEY = "kiosk_pin";
+const CACHE_REFRESH_MS = 2 * 60 * 1000;
 
 export default function KioskPage() {
   // Lazy init from sessionStorage so a refresh keeps the kiosk unlocked
@@ -150,7 +161,102 @@ function KeypadButton({
 // ---------------- Kiosk Scanner ----------------
 
 function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  const [pending, setPending] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+
+  // Warm + periodically refresh the PII-free ticket cache. The kiosk is public,
+  // so this fetch carries only { id, status, scanned } — no names or phones.
+  const refreshCache = useCallback(async () => {
+    try {
+      const res = await fetch("/api/kiosk-tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        await cacheKioskTickets(data.tickets);
+      }
+    } catch {
+      // Network down — keep using whatever's cached.
+    }
+  }, [pin]);
+
+  useEffect(() => {
+    refreshCache();
+    const interval = setInterval(() => {
+      if (navigator.onLine) refreshCache();
+    }, CACHE_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [refreshCache]);
+
+  // Track connectivity.
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  // Pending count on mount.
+  useEffect(() => {
+    getKioskPendingCount().then(setPending).catch(() => {});
+  }, []);
+
+  // Drain the offline queue when connectivity returns.
+  const drainQueue = useCallback(async () => {
+    const queued = await getKioskPendingScans();
+    if (queued.length === 0) return;
+    setSyncing(true);
+    try {
+      // Fire each pending check-in sequentially against the live endpoint.
+      const ok: string[] = [];
+      for (const q of queued) {
+        try {
+          const res = await fetch("/api/kiosk-checkin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pin, ticketId: q.id }),
+          });
+          if (res.ok) ok.push(q.id);
+          if (res.status === 403) {
+            // PIN changed/disabled — the kiosk session is over.
+            onLock();
+            return;
+          }
+        } catch {
+          break; // network dropped again mid-sync
+        }
+      }
+      if (ok.length > 0) {
+        await clearKioskPendingScans(ok);
+        setPending((p) => Math.max(0, p - ok.length));
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }, [pin, onLock]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnline(true);
+      drainQueue();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [drainQueue]);
+
+  // Validate a decoded QR — online via the check-in endpoint, offline via cache.
   async function handleCode(ticketId: string): Promise<ScanOutcome> {
+    // Online path.
     try {
       const res = await fetch("/api/kiosk-checkin", {
         method: "POST",
@@ -159,10 +265,12 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        // 403 mid-session = admin disabled/changed the PIN → lock out.
         if (res.status === 403) {
           onLock();
           return { kind: "error", message: "Kiosk session ended. Contact staff." };
+        }
+        if (res.status === 429) {
+          return { kind: "error", message: data.error ?? "Too many attempts." };
         }
         return { kind: "error", message: data.error ?? "Check-in failed." };
       }
@@ -179,8 +287,31 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
       }
       return { kind: "invalid", id: ticketId };
     } catch {
-      return { kind: "error", message: "Network error. Check your connection." };
+      // Network failed — fall through to offline validation below.
     }
+
+    // Offline path: validate against the PII-free cache.
+    const cached = await getCachedKioskTickets();
+    const t = cached.find((x) => x.id === ticketId);
+    if (!t) {
+      return {
+        kind: "error",
+        message: "Cannot verify while offline. Find staff for assistance.",
+      };
+    }
+    if (t.status === "coming-soon" && !t.scanned) {
+      await enqueueKioskScan({ id: ticketId, timestamp: Date.now() });
+      await markKioskCachedScanned(ticketId);
+      setPending((p) => p + 1);
+      // No name locally (PII-free cache) — show a generic success.
+      return { kind: "granted", name: "", id: ticketId };
+    }
+    return {
+      kind: "already",
+      name: "",
+      id: ticketId,
+      status: t.status,
+    };
   }
 
   return (
@@ -189,6 +320,19 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
         <ScanLineIcon className="h-6 w-6" />
         <h1 className="text-xl font-semibold">Self Check-in</h1>
       </div>
+
+      {!online && (
+        <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+          <WifiOff className="h-4 w-4" />
+          Offline — check-ins are saved and will sync automatically.
+        </div>
+      )}
+      {online && pending > 0 && (
+        <div className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+          <CloudUpload className={syncing ? "h-4 w-4 animate-pulse" : "h-4 w-4"} />
+          {syncing ? `Syncing ${pending}…` : `${pending} pending sync`}
+        </div>
+      )}
 
       <div className="w-full max-w-md">
         <QrScanner

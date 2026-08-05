@@ -7,8 +7,16 @@ import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { paths } from "@/lib/paths";
 import { logKioskAction } from "@/lib/redis-log";
+import { getClientIp, recordFailure, clearRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+// Brute-force throttling: 5 wrong-PIN attempts per IP per 5 minutes. A correct
+// PIN always passes (and resets the counter), so a spammer cannot DOS-lock a
+// legitimate kiosk that knows the PIN. At 5/5min, cracking a 4-digit PIN
+// (10k combos) takes ~7 days minimum; an 8-digit PIN is effectively uncrackable.
+const FAIL_LIMIT = 5;
+const FAIL_WINDOW_SEC = 5 * 60;
 
 type CheckinResponse =
   | { ok: true; outcome: "granted" | "already" | "invalid"; ticket: { name: string; id: string; status: string } | null }
@@ -37,17 +45,33 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const db = getAdminDb();
+    const ip = getClientIp(request);
+    const failKey = `kiosk_fail:${ip}`;
 
     // Verify the PIN against the admin-only security doc.
     const secSnap = await db.doc(paths.adminSecurityDoc).get();
     const configuredPin = (secSnap.data()?.kioskPin as string | undefined) ?? "";
-    if (configuredPin.length < 4 || pin !== configuredPin) {
+    const pinCorrect = configuredPin.length >= 4 && pin === configuredPin;
+
+    if (!pinCorrect) {
+      // Wrong PIN — record the failure and throttle repeated guessing.
+      const state = await recordFailure(failKey, FAIL_LIMIT, FAIL_WINDOW_SEC);
+      if (state.blocked) {
+        return NextResponse.json<CheckinResponse>(
+          { ok: false, error: "Too many failed attempts. Please try again later." },
+          { status: 429, headers: { "Retry-After": String(state.retryAfter) } }
+        );
+      }
       // Same response for missing/mismatch to avoid PIN enumeration.
       return NextResponse.json<CheckinResponse>(
         { ok: false, error: "Kiosk is not available. Contact the event organizer." },
         { status: 403 }
       );
     }
+
+    // Correct PIN — reset the failure counter so a legitimate kiosk is never
+    // DOS-locked by someone else spamming wrong PINs from the same IP.
+    await clearRateLimit(failKey);
 
     // Look up the ticket (Admin SDK bypasses firestore.rules).
     const ref = db.collection(paths.ticketsCollection).doc(ticketId);

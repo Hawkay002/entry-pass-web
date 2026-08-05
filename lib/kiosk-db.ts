@@ -1,26 +1,28 @@
-// lib/offline-db.ts — IndexedDB-backed offline cache for the scanner.
-// Deliberately NOT localStorage: IndexedDB is async, larger, and survives
-// across the PWA lifecycle. Stores the warm ticket snapshot + a pending
-// scan queue so the scanner works with no network.
+// lib/kiosk-db.ts — IndexedDB offline cache for the PUBLIC kiosk.
+// Deliberately separate from lib/offline-db.ts (the staff scanner):
+//   - its own DB namespace (so staff + kiosk caches never collide)
+//   - stores ONLY { id, status, scanned } — NO names/phones/PII, because the
+//     kiosk is an unauthenticated public tablet
 //
 // Two object stores:
-//   - kv:    single-record key/value (used for the ticket snapshot)
-//   - queue: pending offline scans keyed by id
+//   - kv:    the PII-free ticket snapshot (keyed by "tickets")
+//   - queue: pending offline self check-ins keyed by ticket id
 
-import type { Ticket } from "@/lib/types";
-
-const DB_NAME = "entry-pass-offline";
+const DB_NAME = "entry-pass-kiosk";
 const DB_VERSION = 1;
 const STORE_KV = "kv";
 const STORE_QUEUE = "queue";
 const KV_TICKETS_KEY = "tickets";
 
-/** Minimal ticket shape cached for offline validation (no PII like phone). */
-export type OfflineTicket = Pick<Ticket, "id" | "name" | "status" | "scanned">;
+/** PII-free ticket shape cached for offline kiosk validation. */
+export interface KioskTicket {
+  id: string;
+  status: string;
+  scanned: boolean;
+}
 
-export interface PendingScan {
-  id: string;       // ticket id (also the queue key)
-  name: string;
+export interface KioskPendingScan {
+  id: string;
   timestamp: number;
 }
 
@@ -65,19 +67,17 @@ function tx<T>(
 
 // ---------------- Ticket cache ----------------
 
-/** Replace the cached ticket snapshot (called by the scanner's periodic refresh). */
-export async function cacheTickets(tickets: OfflineTicket[]): Promise<void> {
+export async function cacheKioskTickets(tickets: KioskTicket[]): Promise<void> {
   try {
     await tx(STORE_KV, "readwrite", (s) => s.put(tickets, KV_TICKETS_KEY));
   } catch (err) {
-    console.error("[offline-db] cacheTickets failed:", err);
+    console.error("[kiosk-db] cacheKioskTickets failed:", err);
   }
 }
 
-/** Read the last cached ticket snapshot (or [] if none / unavailable). */
-export async function getCachedTickets(): Promise<OfflineTicket[]> {
+export async function getCachedKioskTickets(): Promise<KioskTicket[]> {
   try {
-    const val = await tx<OfflineTicket[]>(STORE_KV, "readonly", (s) =>
+    const val = await tx<KioskTicket[]>(STORE_KV, "readonly", (s) =>
       s.get(KV_TICKETS_KEY)
     );
     return Array.isArray(val) ? val : [];
@@ -86,38 +86,32 @@ export async function getCachedTickets(): Promise<OfflineTicket[]> {
   }
 }
 
-/**
- * Mark a cached ticket as scanned locally so a second offline scan of the same
- * ticket returns "already" instead of granting again. No-op if the ticket
- * isn't in the cache.
- */
-export async function markCachedScanned(id: string): Promise<void> {
+/** Mark a cached ticket as scanned locally so a repeat offline scan says "already". */
+export async function markKioskCachedScanned(id: string): Promise<void> {
   try {
-    const cached = await getCachedTickets();
+    const cached = await getCachedKioskTickets();
     const idx = cached.findIndex((t) => t.id === id);
     if (idx === -1) return;
     cached[idx] = { ...cached[idx], status: "arrived", scanned: true };
     await tx(STORE_KV, "readwrite", (s) => s.put(cached, KV_TICKETS_KEY));
   } catch (err) {
-    console.error("[offline-db] markCachedScanned failed:", err);
+    console.error("[kiosk-db] markKioskCachedScanned failed:", err);
   }
 }
 
 // ---------------- Pending scan queue ----------------
 
-/** Add a scan to the offline queue (keyed by ticket id — dedupes repeats). */
-export async function enqueueScan(entry: PendingScan): Promise<void> {
+export async function enqueueKioskScan(entry: KioskPendingScan): Promise<void> {
   try {
     await tx(STORE_QUEUE, "readwrite", (s) => s.put(entry));
   } catch (err) {
-    console.error("[offline-db] enqueueScan failed:", err);
+    console.error("[kiosk-db] enqueueKioskScan failed:", err);
   }
 }
 
-/** Read all pending scans (oldest first by timestamp). */
-export async function getPendingScans(): Promise<PendingScan[]> {
+export async function getKioskPendingScans(): Promise<KioskPendingScan[]> {
   try {
-    const all = await tx<PendingScan[]>(STORE_QUEUE, "readonly", (s) =>
+    const all = await tx<KioskPendingScan[]>(STORE_QUEUE, "readonly", (s) =>
       s.getAll()
     );
     return (all ?? []).sort((a, b) => a.timestamp - b.timestamp);
@@ -126,8 +120,7 @@ export async function getPendingScans(): Promise<PendingScan[]> {
   }
 }
 
-/** Remove specific scans from the queue after a successful sync. */
-export async function clearPendingScans(ids: string[]): Promise<void> {
+export async function clearKioskPendingScans(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   try {
     await openDb().then((db) => {
@@ -143,12 +136,11 @@ export async function clearPendingScans(ids: string[]): Promise<void> {
       });
     });
   } catch (err) {
-    console.error("[offline-db] clearPendingScans failed:", err);
+    console.error("[kiosk-db] clearKioskPendingScans failed:", err);
   }
 }
 
-/** Count of pending scans (for the UI badge). */
-export async function getPendingCount(): Promise<number> {
+export async function getKioskPendingCount(): Promise<number> {
   try {
     const n = await tx<number>(STORE_QUEUE, "readonly", (s) => s.count());
     return typeof n === "number" ? n : 0;

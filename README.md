@@ -56,8 +56,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Landing Page** — Industrial-grade marketing page with orbiting tech icons, live terminal feed, bento grid
 
 ### Offline & Kiosk
-- **PWA / Offline Scanner** — Installable app (manifest + service worker). Scanner caches tickets in IndexedDB and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
-- **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`.
+- **PWA / Offline Scanner** — Installable app (manifest + service worker). Staff scanner caches a minimal ticket snapshot in IndexedDB (refreshed every 5 min, not an always-on listener) and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
+- **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`. **Works offline** the same way as the staff scanner, but caches only `{id, status, scanned}` (no guest PII) since it's a public device. Brute-force protected: 5 wrong-PIN attempts per IP per 5 minutes (Upstash-backed; a correct PIN resets the counter).
 
 ---
 
@@ -410,7 +410,9 @@ entry-pass-web/
 |   |-- types.ts            # Shared data model
 |   |-- paths.ts            # Firestore collection paths
 |   |-- redis-log.ts        # Upstash activity logging (incl. kiosk)
-|   |-- offline-db.ts       # IndexedDB offline cache + scan queue
+|   |-- rate-limit.ts       # Upstash-backed failure rate limiter
+|   |-- offline-db.ts       # IndexedDB offline cache + scan queue (staff scanner)
+|   |-- kiosk-db.ts         # IndexedDB offline cache + scan queue (kiosk, PII-free)
 |   |-- guest-list.ts       # Filter/sort helpers (pure)
 |   |-- import-export.ts    # Parse + format (CSV/XLSX/PDF/TXT/DOC/JSON)
 |   `-- whatsapp.ts         # Ticket snapshot -> WhatsApp share
@@ -479,7 +481,8 @@ interface GlobalLockDoc {
 | `/api/login` | POST | Verify Firebase ID token, create httpOnly session cookie |
 | `/api/logout` | POST | Clear session cookie |
 | `/api/auto-absent` | POST | Check deadline, mark coming-soon tickets as absent |
-| `/api/kiosk-checkin` | POST | Public self check-in — validates a PIN + marks a ticket arrived (logged as `SELF_CHECKIN`) |
+| `/api/kiosk-checkin` | POST | Public self check-in — validates a PIN + marks a ticket arrived (logged as `SELF_CHECKIN`). Rate-limited: 5 failed PIN attempts/IP/5min. |
+| `/api/kiosk-tickets` | POST | Public, PIN-gated fetch of the PII-free ticket list (`{id, status, scanned}` only) for the kiosk's offline cache. Same rate limit. |
 
 **Login flow:**
 1. Client signs in with Firebase (email/password or Google popup)
