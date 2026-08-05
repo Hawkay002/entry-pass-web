@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QrScanner, type ScanOutcome } from "@/components/scanner/qr-scanner";
 import { cn } from "@/lib/utils";
 import { WifiOff, CloudUpload } from "lucide-react";
@@ -56,6 +56,22 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
 
+  // Refs so the keydown handler always sees the latest values without
+  // re-registering on every keystroke.
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+  const checkingRef = useRef(checking);
+  checkingRef.current = checking;
+
+  function press(d: string) {
+    setError("");
+    if (d === "del") {
+      setEntry((e) => e.slice(0, -1));
+      return;
+    }
+    setEntry((e) => (e.length >= 8 ? e : e + d));
+  }
+
   async function submit() {
     if (entry.length < 4) return;
     setChecking(true);
@@ -82,14 +98,30 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
     setChecking(false);
   }
 
-  function press(d: string) {
-    setError("");
-    if (d === "del") {
-      setEntry((e) => e.slice(0, -1));
-      return;
+  // Physical keyboard support: numpad + number row + Backspace + Enter.
+  const submitRef = useRef(submit);
+  submitRef.current = submit;
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (checkingRef.current) return;
+      // Digits (numpad when NumLock on, or number row). Shift+digit (e.g. "!") ignored.
+      if (/^[0-9]$/.test(e.key) && !e.shiftKey) {
+        press(e.key);
+        return;
+      }
+      if (e.key === "Backspace") {
+        press("del");
+        return;
+      }
+      if (e.key === "Enter" && entryRef.current.length >= 4) {
+        submitRef.current();
+        return;
+      }
     }
-    setEntry((e) => (e.length >= 8 ? e : e + d));
-  }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f0f0f] px-6 text-white">
