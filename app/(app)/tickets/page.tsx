@@ -188,7 +188,7 @@ export default function TicketsPage() {
                   placeholder="Code"
                   dropAlign="right"
                   panelWidth="w-56"
-                  className="w-[80px] shrink-0"
+                  className="w-[110px] shrink-0"
                 />
                 <Input
                   id="phone"
