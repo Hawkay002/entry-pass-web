@@ -18,6 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { deleteLogs } from "@/app/actions/admin";
 import { exportLogsCSV, exportLogsXLSX, exportLogsPDF } from "@/lib/import-export";
 import type { ActivityLog, LogAction } from "@/lib/types";
@@ -75,6 +83,7 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
@@ -199,7 +208,7 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
                 size="sm"
                 variant="destructive"
                 disabled={selected.size === 0 || deleting}
-                onClick={confirmDelete}
+                onClick={() => setDeleteOpen(true)}
               >
                 {deleting ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
@@ -330,6 +339,37 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete confirm modal */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Logs?</DialogTitle>
+            <DialogDescription>
+              Permanently delete{" "}
+              <span className="font-bold text-foreground">{selected.size}</span>{" "}
+              log entries? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleting && (
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Deleting...
+            </div>
+          )}
+          <DialogFooter>
+            {!deleting && (
+              <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </Button>
+            )}
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
