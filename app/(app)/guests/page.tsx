@@ -224,7 +224,7 @@ export default function GuestsPage() {
             <Filter className="h-4 w-4" /> Filter / Sort
           </button>
           {filterOpen && (
-            <div className="glass-panel absolute right-0 top-full z-50 mt-1 max-h-[40vh] w-56 overflow-y-auto p-1 scrollbar-thin" style={{ background: "rgb(0 0 0 / 0.95)" }}>
+            <div className="glass-panel absolute right-0 top-full z-50 mt-1 max-h-[40vh] w-56 overflow-y-auto p-1 scrollbar-thin" style={{ background: "rgb(0 0 0 / 1)" }}>
               <FilterSection label="Ticket Type" />
               {(["all", "Classic", "Diamond", "Gold"] as const).map((v) => (
                 <FilterItem
