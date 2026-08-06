@@ -56,6 +56,12 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Deadline Countdown** — Live timer in Settings showing time remaining until deadline
 - **Landing Page** — Industrial-grade marketing page with orbiting tech icons, live terminal feed, bento grid
 
+### Customization
+- **Custom Backgrounds** — Pick from 12 atmospheric background images (or Starfield default) via the image icon in the header. Applies live across all tabs, per-device via localStorage. Tiny WebP thumbnails for instant modal load; full-res only fetches on selection.
+- **Liquid Glass UI** — All cards, nav, and panels use a frosted glass effect (`backdrop-blur` + saturation + edge highlights) that dynamically blurs the chosen background.
+- **Timezone Selector** — 38 curated timezones (UTC-12 to UTC+14) for deadline accuracy. India (+5:30) default. Persisted per-event.
+- **Country Code Selector** — 203-country dial code dropdown with rectangular SVG flags (flag-icons). India (+91) default.
+
 ### Offline & Kiosk
 - **PWA / Offline Scanner** — Installable app (manifest + service worker). Staff scanner caches a minimal ticket snapshot in IndexedDB (refreshed every 5 min, not an always-on listener) and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
 - **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`. **Works offline** the same way as the staff scanner, but caches only `{id, status, scanned}` (no guest PII) since it's a public device. Brute-force protected: 5 wrong-PIN attempts per IP per 5 minutes (Upstash-backed; a correct PIN resets the counter).
