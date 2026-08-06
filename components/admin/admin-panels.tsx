@@ -78,6 +78,7 @@ const LOCKABLE_TABS: { value: TabName; label: string }[] = [
 export function AdminPanels() {
   return (
     <div className="space-y-6 border-t border-white/5 pt-8">
+      <h3 className="text-lg font-semibold">Admin Panel</h3>
       <KioskPanel />
       <MaintenancePanel />
       <RoleManagementPanel />
@@ -246,8 +247,6 @@ function MaintenancePanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <div className="mt-8 border-t border-white/10" />
     </div>
   );
 }

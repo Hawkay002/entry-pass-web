@@ -191,7 +191,7 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
                   Export ({selected.size})
                 </Button>
                 {exportOpen && (
-                  <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg border border-white/10 bg-[rgb(20,20,20)] py-1 shadow-xl">
+                  <div className="glass-panel absolute right-0 top-full z-20 mt-1 w-36 py-1">
                     {(["csv", "xlsx", "pdf"] as const).map((f) => (
                       <button
                         key={f}
