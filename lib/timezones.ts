@@ -135,6 +135,13 @@ function buildTimezones(): TimezoneOption[] {
     return parse(a.offset) - parse(b.offset);
   });
 
+  // Move India (+05:30) to the top.
+  const istIdx = list.findIndex((t) => t.offset === "+05:30");
+  if (istIdx > 0) {
+    const [ist] = list.splice(istIdx, 1);
+    list.unshift(ist);
+  }
+
   return list;
 }
 
