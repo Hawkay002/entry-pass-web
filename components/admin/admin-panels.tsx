@@ -4,9 +4,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench, ScanLine, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { Loader2, Trash2, UserPlus, Lock, LockOpen, Plus, X, Search, Wrench, ScanLine, ExternalLink, Eye, EyeOff, Pencil, Upload } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,8 @@ import {
   fetchRoles,
   createRole,
   addStaffToRole,
+  bulkAddStaffToRole,
+  updateStaffInRole,
   removeStaffFromRole,
   deleteRole,
 } from "@/app/actions/roles";
@@ -174,7 +176,7 @@ function MaintenancePanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6">
+    <div className="space-y-4 px-6 py-4 border-t border-white/10">
       <div className="mb-1 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
         <h4 className="text-sm font-semibold">Maintenance Mode</h4>
@@ -269,6 +271,13 @@ function RoleManagementPanel() {
   const [addingStaff, setAddingStaff] = useState(false);
   const [deleteRoleConfirm, setDeleteRoleConfirm] = useState<string | null>(null);
   const [removeStaffConfirm, setRemoveStaffConfirm] = useState<{ roleId: string; email: string; name: string } | null>(null);
+  // Bulk upload state
+  const [bulkParsed, setBulkParsed] = useState<{ name: string; email: string }[]>([]);
+  const [bulkAdding, setBulkAdding] = useState(false);
+  // Edit staff state
+  const [editStaff, setEditStaff] = useState<{ roleId: string; oldEmail: string; name: string; email: string } | null>(null);
+  const [editingStaff, setEditingStaff] = useState(false);
+  const bulkFileRef = useRef<HTMLInputElement>(null);
 
   async function handleCreateRole() {
     if (!newRoleName.trim()) return;
@@ -309,8 +318,88 @@ function RoleManagementPanel() {
     else toast.error("Delete failed", { description: res.error });
   }
 
+  async function handleBulkFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let records: { name: string; email: string }[] = [];
+
+      if (ext === "csv" || ext === "txt") {
+        const text = await file.text();
+        const lines = text.split(/\r\n|\n/).filter((l) => l.trim());
+        // Skip header if it looks like one
+        const first = lines[0].toLowerCase();
+        const hasHeader = first.includes("name") || first.includes("email");
+        const dataLines = hasHeader ? lines.slice(1) : lines;
+        for (const line of dataLines) {
+          const cells = line.split(/[,\t;|]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+          if (cells.length >= 2) records.push({ name: cells[0], email: cells[1] });
+        }
+      } else if (ext === "json") {
+        const data = JSON.parse(await file.text());
+        records = (Array.isArray(data) ? data : []).map((r: Record<string, unknown>) => {
+          const keys = Object.keys(r);
+          const nameKey = keys.find((k) => /name/i.test(k)) ?? keys[0];
+          const emailKey = keys.find((k) => /email|mail/i.test(k)) ?? keys[1];
+          return { name: String(r[nameKey] ?? ""), email: String(r[emailKey] ?? "") };
+        });
+      } else if (ext === "xlsx") {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+        records = rows.map((r) => {
+          const keys = Object.keys(r);
+          const nameKey = keys.find((k) => /name/i.test(k)) ?? keys[0];
+          const emailKey = keys.find((k) => /email|mail/i.test(k)) ?? keys[1];
+          return { name: String(r[nameKey] ?? ""), email: String(r[emailKey] ?? "") };
+        });
+      }
+
+      const valid = records.filter((r) => r.name.trim() && r.email.trim());
+      if (valid.length === 0) {
+        toast.error("No valid rows found", { description: "Make sure the file has name and email columns." });
+        return;
+      }
+      setBulkParsed(valid);
+      toast.success(`Found ${valid.length} staff member(s)`);
+    } catch (err) {
+      toast.error("Parse failed", { description: (err as Error).message });
+    }
+    if (bulkFileRef.current) bulkFileRef.current.value = "";
+  }
+
+  async function handleBulkAdd() {
+    if (!addStaffOpen || bulkParsed.length === 0) return;
+    setBulkAdding(true);
+    const res = await bulkAddStaffToRole(addStaffOpen, bulkParsed);
+    setBulkAdding(false);
+    if (res.ok) {
+      toast.success(`Added ${res.added} staff member(s)`, {
+        description: res.skipped > 0 ? `${res.skipped} duplicate(s) skipped` : undefined,
+      });
+      setBulkParsed([]);
+    } else {
+      toast.error("Bulk add failed", { description: res.error });
+    }
+  }
+
+  async function handleEditStaff() {
+    if (!editStaff) return;
+    setEditingStaff(true);
+    const res = await updateStaffInRole(editStaff.roleId, editStaff.oldEmail, editStaff.name, editStaff.email);
+    setEditingStaff(false);
+    if (res.ok) {
+      toast.success("Staff member updated");
+      setEditStaff(null);
+    } else {
+      toast.error("Update failed", { description: res.error });
+    }
+  }
+
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6">
+    <div className="space-y-4 px-6 py-4 border-t border-white/10">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Role Management</h4>
@@ -376,12 +465,20 @@ function RoleManagementPanel() {
                         <span className="font-medium">{s.name}</span>
                         <span className="ml-2 text-muted-foreground">{s.email}</span>
                       </div>
-                      <button
-                        onClick={() => setRemoveStaffConfirm({ roleId: role.id, email: s.email, name: s.name })}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditStaff({ roleId: role.id, oldEmail: s.email, name: s.name, email: s.email })}
+                          className="text-muted-foreground hover:text-accent-secondary"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setRemoveStaffConfirm({ roleId: role.id, email: s.email, name: s.name })}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -391,13 +488,17 @@ function RoleManagementPanel() {
         </div>
       )}
 
-      {/* Add staff dialog */}
-      <Dialog open={!!addStaffOpen} onOpenChange={(o) => !o && setAddStaffOpen(null)}>
+      {/* Add staff dialog (single + bulk upload) */}
+      <Dialog open={!!addStaffOpen} onOpenChange={(o) => { if (!o) { setAddStaffOpen(null); setBulkParsed([]); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Staff Member</DialogTitle>
+            <DialogDescription>
+              Add individually or bulk upload from CSV, JSON, or XLSX.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Single add */}
             <div className="space-y-2">
               <Label>Name</Label>
               <Input value={staffName} onChange={(e) => setStaffName(e.target.value)} placeholder="Full name" />
@@ -406,12 +507,94 @@ function RoleManagementPanel() {
               <Label>Email (Google account)</Label>
               <Input value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} placeholder="staff@gmail.com" type="email" />
             </div>
+
+            {/* Divider */}
+            <div className="relative py-1">
+              <div className="border-t border-white/10" />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[rgb(10,10,10)] px-2 text-xs text-muted-foreground">
+                or bulk upload
+              </span>
+            </div>
+
+            {/* Bulk upload */}
+            <input
+              ref={bulkFileRef}
+              type="file"
+              accept=".csv,.json,.xlsx,.txt"
+              onChange={handleBulkFile}
+              className="absolute h-0 w-0 opacity-0"
+            />
+            <Button variant="outline" className="w-full" onClick={() => bulkFileRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" /> Upload File (CSV/JSON/XLSX)
+            </Button>
+
+            {/* Bulk preview */}
+            {bulkParsed.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                <p className="mb-2 text-sm font-medium text-success-green">
+                  {bulkParsed.length} staff member(s) will be added
+                </p>
+                <div className="max-h-40 space-y-1 overflow-y-auto scrollbar-thin">
+                  {bulkParsed.map((m, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-lg bg-white/5 px-2 py-1 text-xs">
+                      <span className="font-medium">{m.name}</span>
+                      <span className="text-muted-foreground">{m.email}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setAddStaffOpen(null)}>Cancel</Button>
-            <Button onClick={handleAddStaff} disabled={addingStaff || !staffName.trim() || !staffEmail.trim()}>
-              {addingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add
+            <Button variant="ghost" onClick={() => { setAddStaffOpen(null); setBulkParsed([]); }}>Cancel</Button>
+            {bulkParsed.length > 0 ? (
+              <Button onClick={handleBulkAdd} disabled={bulkAdding}>
+                {bulkAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add {bulkParsed.length} Staff
+              </Button>
+            ) : (
+              <Button onClick={handleAddStaff} disabled={addingStaff || !staffName.trim() || !staffEmail.trim()}>
+                {addingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Add
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit staff dialog */}
+      <Dialog open={!!editStaff} onOpenChange={(o) => !o && setEditStaff(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={editStaff?.name ?? ""}
+                onChange={(e) => setEditStaff((p) => p ? { ...p, name: e.target.value } : p)}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email (Google account)</Label>
+              <Input
+                value={editStaff?.email ?? ""}
+                onChange={(e) => setEditStaff((p) => p ? { ...p, email: e.target.value } : p)}
+                placeholder="staff@gmail.com"
+                type="email"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditStaff(null)}>Cancel</Button>
+            <Button
+              onClick={handleEditStaff}
+              disabled={editingStaff || !editStaff?.name.trim() || !editStaff?.email.trim()}
+            >
+              {editingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -645,7 +828,7 @@ function RemoteDeviceManagement() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6 mb-6">
+    <div className="space-y-4 px-6 py-4 border-t border-white/10">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Remote Device Management</h4>

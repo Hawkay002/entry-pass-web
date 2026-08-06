@@ -87,6 +87,84 @@ export async function addStaffToRole(
   return { ok: true };
 }
 
+/** Bulk add multiple staff members to a role. Skips duplicates by email.
+ *  Returns the count added and skipped. */
+export async function bulkAddStaffToRole(
+  roleId: string,
+  members: { name: string; email: string }[]
+): Promise<{ ok: true; added: number; skipped: number } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user || user.role !== "admin")
+    return { ok: false, error: "Admin role required." };
+
+  const ref = getAdminDb().collection(paths.rolesCollection).doc(roleId);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: false, error: "Role not found." };
+
+  const data = snap.data();
+  const staff: StaffMember[] = data?.staff ?? [];
+  const existingEmails = new Set(staff.map((s) => s.email.toLowerCase()));
+
+  let added = 0;
+  let skipped = 0;
+  for (const m of members) {
+    const name = m.name.trim();
+    const email = m.email.trim().toLowerCase();
+    if (!name || !email) { skipped++; continue; }
+    if (existingEmails.has(email)) { skipped++; continue; }
+    staff.push({ name, email });
+    existingEmails.add(email);
+    added++;
+  }
+
+  if (added > 0) await ref.update({ staff });
+  if (added > 0) {
+    await logAction(
+      user,
+      "LOCK_ACTION",
+      `Bulk added ${added} staff to role "${roleId}" (${skipped} skipped).`
+    );
+  }
+  return { ok: true, added, skipped };
+}
+
+/** Update a staff member's name and/or email within a role. */
+export async function updateStaffInRole(
+  roleId: string,
+  oldEmail: string,
+  newName: string,
+  newEmail: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getAppUser();
+  if (!user || user.role !== "admin")
+    return { ok: false, error: "Admin role required." };
+
+  const name = newName.trim();
+  const email = newEmail.trim().toLowerCase();
+  if (!name || !email)
+    return { ok: false, error: "Name and email are required." };
+
+  const ref = getAdminDb().collection(paths.rolesCollection).doc(roleId);
+  const snap = await ref.get();
+  if (!snap.exists) return { ok: false, error: "Role not found." };
+
+  const data = snap.data();
+  const staff: StaffMember[] = data?.staff ?? [];
+  const idx = staff.findIndex(
+    (s) => s.email.toLowerCase() === oldEmail.toLowerCase()
+  );
+  if (idx === -1) return { ok: false, error: "Staff member not found." };
+
+  staff[idx] = { name, email };
+  await ref.update({ staff });
+  await logAction(
+    user,
+    "LOCK_ACTION",
+    `Updated staff in role "${roleId}": ${oldEmail} → ${name} (${email}).`
+  );
+  return { ok: true };
+}
+
 /** Remove a staff member from a role by email.
  *  Also revokes their Firebase Auth session so they're logged out immediately. */
 export async function removeStaffFromRole(
