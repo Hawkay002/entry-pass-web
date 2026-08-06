@@ -131,7 +131,7 @@
 }
 
 @utility glass-panel {
-  background: rgb(20 20 20 / 0.55);
+  background: rgb(20 20 20 / 0.55) !important;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgb(255 255 255 / 0.08);

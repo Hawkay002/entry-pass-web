@@ -95,7 +95,7 @@ export function AppNav({
   };
 
   return (
-    <div className="inline-flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] p-2">
+    <div className="glass-pill inline-flex flex-col items-center gap-2 rounded-xl p-2">
       <nav className="flex flex-col items-center gap-2 sm:flex-row sm:gap-2 scrollbar-thin">
         <div className="flex justify-center gap-2">{row1.map(renderTab)}</div>
         {row2.length > 0 && (
