@@ -1,151 +1,58 @@
-// lib/timezones.ts — timezone list generated from the countries-and-timezones package.
-// Runs at build/module-load time (pure synchronous, no runtime cost).
-
-import ct from "countries-and-timezones";
+// lib/timezones.ts — curated timezone list with full UTC offset coverage.
+// Covers UTC-12 to UTC+14 including all rare half-hour and 45-minute offsets.
+// India (+05:30) is listed first (default).
 
 export interface TimezoneOption {
   label: string;   // "IST — India (UTC+5:30)"
   offset: string;  // "+05:30"
 }
 
-// Map of common country codes → short labels for nicer display.
-const COUNTRY_LABELS: Record<string, string> = {
-  IN: "India",
-  US: "USA",
-  GB: "UK",
-  AE: "UAE",
-  SG: "Singapore",
-  AU: "Australia",
-  JP: "Japan",
-  DE: "Germany",
-  BR: "Brazil",
-  CA: "Canada",
-  FR: "France",
-  IT: "Italy",
-  ES: "Spain",
-  NL: "Netherlands",
-  RU: "Russia",
-  CN: "China",
-  KR: "South Korea",
-  TH: "Thailand",
-  ID: "Indonesia",
-  MY: "Malaysia",
-  PH: "Philippines",
-  VN: "Vietnam",
-  BD: "Bangladesh",
-  PK: "Pakistan",
-  LK: "Sri Lanka",
-  NP: "Nepal",
-  SA: "Saudi Arabia",
-  QA: "Qatar",
-  KW: "Kuwait",
-  BH: "Bahrain",
-  OM: "Oman",
-  ZA: "South Africa",
-  NG: "Nigeria",
-  EG: "Egypt",
-  MX: "Mexico",
-  AR: "Argentina",
-  CL: "Chile",
-  CO: "Colombia",
-  NZ: "New Zealand",
-  TR: "Turkey",
-  IR: "Iran",
-  IL: "Israel",
-  SE: "Sweden",
-  NO: "Norway",
-  FI: "Finland",
-  PL: "Poland",
-  CH: "Switzerland",
-  AT: "Austria",
-  BE: "Belgium",
-  IE: "Ireland",
-  PT: "Portugal",
-  GR: "Greece",
-  CZ: "Czechia",
-  RO: "Romania",
-  HU: "Hungary",
-  UA: "Ukraine",
-};
+export const TIMEZONES: TimezoneOption[] = [
+  { offset: "+05:30", label: "IST — India (UTC+5:30)" },
+  { offset: "-12:00", label: "AoE — United States, Baker Island (UTC-12:00)" },
+  { offset: "-11:00", label: "SST — American Samoa (UTC-11:00)" },
+  { offset: "-10:00", label: "CKT — Cook Islands (UTC-10:00)" },
+  { offset: "-09:30", label: "MART — French Polynesia, Marquesas Islands (UTC-9:30)" },
+  { offset: "-09:00", label: "GAMT — French Polynesia, Gambier Islands (UTC-9:00)" },
+  { offset: "-08:00", label: "PST — Pitcairn (UTC-8:00)" },
+  { offset: "-07:00", label: "MST — Canada, Mountain Time (UTC-7:00)" },
+  { offset: "-06:00", label: "CST — Belize (UTC-6:00)" },
+  { offset: "-05:00", label: "EST — Bahamas (UTC-5:00)" },
+  { offset: "-04:00", label: "AST — Antigua and Barbuda (UTC-4:00)" },
+  { offset: "-03:30", label: "NST — Canada, Newfoundland (UTC-3:30)" },
+  { offset: "-03:00", label: "ART — Argentina (UTC-3:00)" },
+  { offset: "-02:00", label: "GST — South Georgia (UTC-2:00)" },
+  { offset: "-01:00", label: "CVT — Cabo Verde (UTC-1:00)" },
+  { offset: "+00:00", label: "GMT — Burkina Faso (UTC+0:00)" },
+  { offset: "+01:00", label: "CET — Andorra (UTC+1:00)" },
+  { offset: "+02:00", label: "EET — Åland Islands (UTC+2:00)" },
+  { offset: "+03:00", label: "AST — Bahrain (UTC+3:00)" },
+  { offset: "+03:30", label: "IRST — Iran (UTC+3:30)" },
+  { offset: "+04:00", label: "GST — United Arab Emirates (UTC+4:00)" },
+  { offset: "+04:30", label: "AFT — Afghanistan (UTC+4:30)" },
+  { offset: "+05:00", label: "KZT — Kazakhstan (UTC+5:00)" },
+  { offset: "+05:45", label: "NPT — Nepal (UTC+5:45)" },
+  { offset: "+06:00", label: "BST — Bangladesh (UTC+6:00)" },
+  { offset: "+06:30", label: "CCT — Cocos (Keeling) Islands (UTC+6:30)" },
+  { offset: "+07:00", label: "CXT — Christmas Island (UTC+7:00)" },
+  { offset: "+08:00", label: "AWST — Antarctica, Casey Station (UTC+8:00)" },
+  { offset: "+08:45", label: "ACWST — Australia, Eucla (UTC+8:45)" },
+  { offset: "+09:00", label: "JST — Japan (UTC+9:00)" },
+  { offset: "+09:30", label: "ACST — Australia, Northern Territory (UTC+9:30)" },
+  { offset: "+10:00", label: "AEST — Australia, Queensland (UTC+10:00)" },
+  { offset: "+10:30", label: "LHST — Australia, Lord Howe Island (UTC+10:30)" },
+  { offset: "+11:00", label: "PONT — Micronesia, Pohnpei (UTC+11:00)" },
+  { offset: "+12:00", label: "FJT — Fiji (UTC+12:00)" },
+  { offset: "+12:45", label: "CHAST — New Zealand, Chatham Islands (UTC+12:45)" },
+  { offset: "+13:00", label: "PHOT — Kiribati, Phoenix Islands (UTC+13:00)" },
+  { offset: "+14:00", label: "LINT — Kiribati, Line Islands (UTC+14:00)" },
+];
 
-// Abbreviation map for nicer labels.
-const TZ_ABBREV: Record<string, string> = {
-  "Asia/Kolkata": "IST",
-  "America/New_York": "EST",
-  "America/Chicago": "CST",
-  "America/Denver": "MST",
-  "America/Los_Angeles": "PST",
-  "America/Anchorage": "AKST",
-  "Pacific/Honolulu": "HST",
-  "Europe/London": "GMT",
-  "Europe/Paris": "CET",
-  "Europe/Berlin": "CET",
-  "Europe/Madrid": "CET",
-  "Europe/Rome": "CET",
-  "Asia/Dubai": "GST",
-  "Asia/Karachi": "PKT",
-  "Asia/Dhaka": "BST",
-  "Asia/Bangkok": "ICT",
-  "Asia/Shanghai": "CST-CN",
-  "Asia/Singapore": "SGT",
-  "Asia/Tokyo": "JST",
-  "Australia/Sydney": "AEST",
-  "Australia/Adelaide": "ACST",
-  "Pacific/Auckland": "NZST",
-  "America/Sao_Paulo": "BRT",
-  "America/Argentina/Buenos_Aires": "ART",
-  "Asia/Riyadh": "AST",
-  "Africa/Johannesburg": "SAST",
-  "Africa/Lagos": "WAT",
-  "Africa/Cairo": "EET",
-};
-
-/** Build the timezone list from the package, deduped by offset, sorted. */
-function buildTimezones(): TimezoneOption[] {
-  const countries = ct.getAllCountries();
-  const seen = new Set<string>();
-  const list: TimezoneOption[] = [];
-
-  for (const [code, country] of Object.entries(countries)) {
-    const tzName = country.timezones?.[0];
-    if (!tzName) continue;
-    try {
-      const tz = ct.getTimezone(tzName);
-      if (!tz?.utcOffsetStr || seen.has(tz.utcOffsetStr)) continue;
-      seen.add(tz.utcOffsetStr);
-
-      const countryName = COUNTRY_LABELS[code] ?? country.name;
-      const abbrev = TZ_ABBREV[tzName] ?? code;
-      list.push({
-        label: `${abbrev} — ${countryName} (UTC${tz.utcOffsetStr})`,
-        offset: tz.utcOffsetStr,
-      });
-    } catch {
-      // skip invalid timezone
-    }
-  }
-
-  // Sort by UTC offset (parse "+05:30" → 330 for numeric sort).
-  list.sort((a, b) => {
-    const parse = (s: string) => {
-      const sign = s[0] === "-" ? -1 : 1;
-      const [h, m] = s.slice(1).split(":").map(Number);
-      return sign * (h * 60 + m);
-    };
-    return parse(a.offset) - parse(b.offset);
-  });
-
-  // Move India (+05:30) to the top.
-  const istIdx = list.findIndex((t) => t.offset === "+05:30");
-  if (istIdx > 0) {
-    const [ist] = list.splice(istIdx, 1);
-    list.unshift(ist);
-  }
-
-  return list;
-}
-
-export const TIMEZONES: TimezoneOption[] = buildTimezones();
-
-/** Find IST offset (always +05:30) — used as default. */
+/** Default timezone offset — India. */
 export const DEFAULT_TZ = "+05:30";
+
+/** Find the full label for a given offset. */
+export function getTzLabel(offset: string): string | null {
+  const tz = TIMEZONES.find((t) => t.offset === offset);
+  return tz ? tz.label : null;
+}

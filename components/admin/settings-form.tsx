@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSettings } from "@/hooks/use-settings";
 import { saveSettings, clearSettings } from "@/app/actions/admin";
-import { TIMEZONES, DEFAULT_TZ } from "@/lib/timezones";
+import { TIMEZONES, DEFAULT_TZ, getTzLabel } from "@/lib/timezones";
 
 export function SettingsForm() {
   const { settings, loading } = useSettings();
@@ -175,7 +175,9 @@ export function SettingsForm() {
                 : "—"}
             </span>
             {settings.timezone && settings.timezone !== "auto" && (
-              <span className="text-white"> (UTC{settings.timezone})</span>
+              <span className="text-white">
+                {" "}({getTzLabel(settings.timezone) ?? `UTC${settings.timezone}`})
+              </span>
             )}
           </p>
           {settings.deadline && <DeadlineCountdown deadline={settings.deadline} />}
