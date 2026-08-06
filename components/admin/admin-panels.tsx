@@ -177,9 +177,9 @@ function MaintenancePanel() {
     <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6">
       <div className="mb-1 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
-        <h4 className="text-base font-semibold">Maintenance Mode</h4>
+        <h4 className="text-sm font-semibold">Maintenance Mode</h4>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-4 text-xs text-muted-foreground">
         Locks all tabs for all staff across all roles simultaneously.
       </p>
 
@@ -313,9 +313,9 @@ function RoleManagementPanel() {
     <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
-        <h4 className="text-base font-semibold">Role Management</h4>
+        <h4 className="text-sm font-semibold">Role Management</h4>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-4 text-xs text-muted-foreground">
         Create roles and add staff members. Staff log in with Google using their email.
       </p>
 
@@ -648,9 +648,9 @@ function RemoteDeviceManagement() {
     <div className="space-y-4 px-6 py-4 border-t border-white/10 mx-6 mb-6">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
-        <h4 className="text-base font-semibold">Remote Device Management</h4>
+        <h4 className="text-sm font-semibold">Remote Device Management</h4>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-4 text-xs text-muted-foreground">
         Click a role to select staff and lock their tabs.
       </p>
 
@@ -1026,9 +1026,9 @@ function KioskPanel() {
     <div className="space-y-4 px-6 py-4">
       <div className="mb-1 flex items-center gap-2">
         <ScanLine className="h-5 w-5 text-emerald-400" />
-        <h4 className="text-base font-semibold">Self Check-in Kiosk</h4>
+        <h4 className="text-sm font-semibold">Self Check-in Kiosk</h4>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-4 text-xs text-muted-foreground">
         Set a PIN to enable a public kiosk at <code className="rounded bg-white/10 px-1 py-0.5 text-xs">/kiosk</code> where guests
         scan their own QR code on a mounted tablet. Leave empty to disable.
       </p>
