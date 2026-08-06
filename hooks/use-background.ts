@@ -18,15 +18,23 @@ export interface BackgroundPreset {
   url: string; // "" = starfield default
 }
 
-/** The curated set of background presets (single source of truth). */
+/** The curated set of background presets (single source of truth).
+ *  Ordered by file size, smallest first, so the modal loads light thumbnails
+ *  before heavy ones. */
 export const BACKGROUND_PRESETS: BackgroundPreset[] = [
   { id: "default", label: "Starfield", url: "" },
-  { id: "aurora", label: "Aurora", url: "/backgrounds/aurora.svg" },
-  { id: "nebula", label: "Nebula", url: "/backgrounds/nebula.svg" },
-  { id: "ocean", label: "Ocean", url: "/backgrounds/ocean.svg" },
-  { id: "forest", label: "Forest", url: "/backgrounds/forest.svg" },
-  { id: "ember", label: "Ember", url: "/backgrounds/ember.svg" },
-  { id: "mesh", label: "Mesh Grid", url: "/backgrounds/mesh.svg" },
+  { id: "nocturne", label: "Nocturne", url: "/backgrounds/nocturne.png" },
+  { id: "underwater", label: "Underwater", url: "/backgrounds/underwater.png" },
+  { id: "waterfall", label: "Waterfall", url: "/backgrounds/waterfall.png" },
+  { id: "perplex-1", label: "Perplex I", url: "/backgrounds/perplex-1.png" },
+  { id: "reverie", label: "Reverie", url: "/backgrounds/reverie.png" },
+  { id: "zephyr", label: "Zephyr", url: "/backgrounds/zephyr.png" },
+  { id: "perplex-2", label: "Perplex II", url: "/backgrounds/perplex-2.png" },
+  { id: "perplex-3", label: "Perplex III", url: "/backgrounds/perplex-3.png" },
+  { id: "viridian-1", label: "Viridian I", url: "/backgrounds/viridian-1.png" },
+  { id: "perplex-4", label: "Perplex IV", url: "/backgrounds/perplex-4.png" },
+  { id: "viridian-2", label: "Viridian II", url: "/backgrounds/viridian-2.png" },
+  { id: "elysian", label: "Elysian", url: "/backgrounds/elysian.png" },
 ];
 
 // ---- Module-level store (sync across all hook instances) ----

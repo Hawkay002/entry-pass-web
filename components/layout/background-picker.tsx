@@ -70,7 +70,7 @@ function BackgroundPickerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-3 gap-3 py-2">
+        <div className="grid max-h-[50vh] grid-cols-3 gap-3 overflow-y-auto py-2 scrollbar-thin">
           {BACKGROUND_PRESETS.map((preset) => (
             <button
               key={preset.id}
@@ -83,10 +83,12 @@ function BackgroundPickerDialog({
               )}
             >
               {preset.url ? (
-                // eslint-disable-next-line @next/next/no-img-element -- tiny SVG thumbnails
+                // eslint-disable-next-line @next/next/no-img-element -- lazy-loaded thumbnails
                 <img
                   src={preset.url}
                   alt={preset.label}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover"
                 />
               ) : (
