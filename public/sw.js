@@ -1,12 +1,13 @@
 // public/sw.js — service worker for Entry Pass.
 // Strategies:
-//   - Static assets (_next/static, fonts, icons): cache-first (versioned URLs)
+//   - Static assets (_next/static, fonts, icons): network-first with cache
+//     fallback (ensures latest code on every deploy; works offline)
 //   - Navigations (HTML): network-first, fall back to cached shell when offline
 //   - API + everything else: network-only (never cache dynamic data)
 //
 // No workbox dependency. Kept intentionally small.
 
-const CACHE_VERSION = "entry-pass-v1";
+const CACHE_VERSION = "entry-pass-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 const OFFLINE_URL = "/"; // landing shell used as the offline fallback
@@ -74,7 +75,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (_next/static, fonts, images, audio): cache-first.
+  // Static assets (_next/static, fonts, images, audio): network-first with
+  // cache fallback. This ensures the latest code is always served on deploys
+  // while still working offline. (Cache-first caused stale-JS breakage.)
   const isStaticAsset =
     url.pathname.startsWith("/_next/static/") ||
     /\.(?:js|css|woff2?|ttf|otf|png|jpg|jpeg|gif|webp|svg|ico|mp3|wav)$/.test(url.pathname) ||
@@ -82,15 +85,16 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
           const copy = response.clone();
           caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(request))
     );
+    return;
   }
+
   // Everything else: default browser behavior (network-only).
 });
