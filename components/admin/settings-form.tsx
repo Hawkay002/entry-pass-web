@@ -135,6 +135,7 @@ export function SettingsForm() {
                 ...TIMEZONES.map((t) => ({ value: t.offset, label: t.label })),
               ]}
               placeholder="Timezone"
+              dropAlign="left"
               className="w-[180px] shrink-0"
             />
           </div>
