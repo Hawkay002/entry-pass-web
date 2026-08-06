@@ -19,6 +19,8 @@ export function SearchableSelect({
   onChange,
   placeholder = "Select...",
   dropAlign = "left",
+  mobileDropAlign,
+  belowAlign = "left",
   panelWidth = "w-72",
   className,
 }: {
@@ -26,16 +28,32 @@ export function SearchableSelect({
   options: SearchableOption[];
   onChange: (value: string) => void;
   placeholder?: string;
-  /** "below" = panel opens below (default), "right" = opens RIGHT centered, "left" = opens LEFT centered */
+  /** "below" = opens below (default), "right" = opens RIGHT centered, "left" = opens LEFT centered */
   dropAlign?: "below" | "left" | "right";
+  /** Override dropAlign on mobile (sm breakpoint). e.g. dropAlign="left" + mobileDropAlign="below" */
+  mobileDropAlign?: "below" | "left" | "right";
+  /** When opening below, align to "left" (default) or "right" */
+  belowAlign?: "left" | "right";
   /** Custom width class for the side panel (e.g. "w-72", "w-80") */
   panelWidth?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Track mobile/desktop for responsive dropAlign.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const effectiveAlign = isMobile && mobileDropAlign ? mobileDropAlign : dropAlign;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -80,11 +98,11 @@ export function SearchableSelect({
       {open && (
         <div className={cn(
           "absolute z-50 overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
-          dropAlign === "right"
+          effectiveAlign === "right"
             ? `left-full top-1/2 ml-1 -translate-y-1/2 ${panelWidth}`
-            : dropAlign === "left"
+            : effectiveAlign === "left"
             ? `right-full top-1/2 mr-1 -translate-y-1/2 ${panelWidth}`
-            : "left-0 top-full mt-1 w-full min-w-[200px]"
+            : `${belowAlign === "right" ? "right-0" : "left-0"} top-full mt-1 ${panelWidth} min-w-[200px]`
         )}>
           {/* Search */}
           <div className="relative border-b border-white/10 p-2">

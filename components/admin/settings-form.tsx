@@ -136,6 +136,8 @@ export function SettingsForm() {
               ]}
               placeholder="Timezone"
               dropAlign="left"
+              mobileDropAlign="below"
+              belowAlign="right"
               panelWidth="w-80"
               className="w-[180px] shrink-0"
             />
