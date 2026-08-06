@@ -41,13 +41,6 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    // ---- Staff registry ---------------------------------------------------
-    // allowed_usernames/{username}
-    match /allowed_usernames/{username} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
     // ---- Remote locks -----------------------------------------------------
     // global_locks/{userEmail} — a user may read their own lock doc;
     // only admins write lock state.
@@ -56,15 +49,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ---- Presence ---------------------------------------------------------
-    // global_presence/{email}/devices/{deviceId}
-    match /global_presence/{email=**} {
-      allow read: if isAdmin();
-      allow write: if isSignedIn() && isSelf(email);
-    }
-
     // ---- Admin security settings -----------------------------------------
-    // admin_settings/security (legacy passwords doc — now admin-only).
+    // admin_settings/security (kiosk PIN + admin-only config).
     match /admin_settings/{doc} {
       allow read, write: if isAdmin();
     }
@@ -88,6 +74,12 @@ service cloud.firestore {
     match /help_contacts/{contactId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // ---- Audit trail (factory reset records) -----------------------------
+    match /audit_trail/{doc} {
+      allow write: if isAdmin();
+      allow read: if isAdmin();
     }
 
     // ---- Default deny -----------------------------------------------------

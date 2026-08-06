@@ -13,8 +13,6 @@ import type {
   ActivityLog,
   EventSettings,
   LockReasonType,
-  Role,
-  StaffUser,
 } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { fetchAllLogs, deleteLogsFromRedis } from "@/lib/redis-log";
@@ -141,82 +139,6 @@ export async function getKioskStatus(): Promise<
   const snap = await getAdminDb().doc(paths.adminSecurityDoc).get();
   const pin = (snap.data()?.kioskPin as string | undefined) ?? "";
   return { ok: true, enabled: pin.length >= 4 };
-}
-
-// ---------------- Staff-user management ----------------
-
-export async function fetchStaffUsers(): Promise<
-  { ok: true; users: StaffUser[] } | { ok: false; error: string }
-> {
-  const user = await getAppUser();
-  if (!user) return { ok: false, error: "Not authenticated." };
-  if (user.role !== "admin")
-    return { ok: false, error: "Admin role required." };
-
-  const snap = await getAdminDb().collection(paths.usernamesCollection).get();
-  const users: StaffUser[] = snap.docs.map((d) => {
-    const data = d.data();
-    return {
-      username: d.id,
-      realName: String(data.realName ?? ""),
-      role: data.role as Role,
-      email: String(data.email ?? ""),
-      createdAt: Number(data.createdAt ?? 0),
-    };
-  });
-  return { ok: true, users };
-}
-
-export async function createStaffUser(
-  input: {
-    username: string;
-    realName: string;
-    role: Role;
-    email: string;
-  }
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const user = await getAppUser();
-  requireAdmin(user);
-
-  const username = input.username.trim();
-  if (!username || !input.email) {
-    return { ok: false, error: "Username and email are required." };
-  }
-
-  const ref = getAdminDb().collection(paths.usernamesCollection).doc(username);
-  const existing = await ref.get();
-  if (existing.exists) {
-    return { ok: false, error: "Username already exists." };
-  }
-
-  await ref.set({
-    realName: input.realName.trim(),
-    role: input.role,
-    email: input.email.trim(),
-    createdAt: Date.now(),
-  });
-
-  await logAction(
-    user,
-    "LOCK_ACTION",
-    `Created staff user "${username}" (${input.realName}, ${input.role}).`
-  );
-  return { ok: true };
-}
-
-export async function deleteStaffUser(
-  username: string
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const user = await getAppUser();
-  requireAdmin(user);
-
-  await getAdminDb()
-    .collection(paths.usernamesCollection)
-    .doc(username)
-    .delete();
-
-  await logAction(user, "LOCK_ACTION", `Deleted staff user "${username}".`);
-  return { ok: true };
 }
 
 // ---------------- Remote Lock ----------------

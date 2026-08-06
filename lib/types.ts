@@ -68,15 +68,6 @@ export interface ActivityLog {
   details: string;
 }
 
-/** Path: allowed_usernames/{username} */
-export interface StaffUser {
-  username: string; // document id
-  realName: string;
-  role: Role;
-  email: string;
-  createdAt: number;
-}
-
 export type LockReasonType = "basic" | "maintenance" | "suspension";
 
 export interface LockMetadata {
