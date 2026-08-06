@@ -76,7 +76,7 @@ function BackgroundPickerDialog({
               key={preset.id}
               onClick={() => setSelected(preset.id)}
               className={cn(
-                "group relative aspect-video shrink-0 overflow-hidden rounded-lg border-2 transition-all",
+                "group relative h-24 w-full shrink-0 overflow-hidden rounded-lg border-2 transition-all",
                 selected === preset.id
                   ? "border-accent-secondary ring-2 ring-accent-secondary/40"
                   : "border-white/10 hover:border-white/30"
