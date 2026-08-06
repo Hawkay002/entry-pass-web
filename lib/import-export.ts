@@ -2,6 +2,7 @@
 // Faithful to the original (script.js:2006-2384) with type safety.
 
 import type { Gender, Ticket, TicketStatus, TicketType } from "@/lib/types";
+import type { LogEntry } from "@/lib/redis-log";
 
 // ---------------- EXPORT HELPERS ----------------
 
@@ -187,6 +188,81 @@ export async function exportTickets(
     default:
       throw new Error(`Unsupported export format: ${format}`);
   }
+}
+
+// ---------------- ACTIVITY LOG EXPORTS ----------------
+
+const LOG_ACTION_LABELS: Record<string, string> = {
+  LOGIN: "Login",
+  TICKET_CREATE: "Ticket Issue",
+  SCAN_ENTRY: "Scan",
+  SELF_CHECKIN: "Self Check-in",
+  CONFIG_CHANGE: "Settings Change",
+  HELP_CALL: "Help Call",
+  TICKET_DELETE: "Ticket Deletion",
+  FACTORY_RESET: "Factory Reset",
+  LOCK_ACTION: "Lock Action",
+  LOG_DELETE: "Log Deletion",
+  EXPORT_DATA: "Data Export",
+  IMPORT_DATA: "Data Import",
+};
+
+function logActionLabel(action: string): string {
+  return LOG_ACTION_LABELS[action] ?? action;
+}
+
+function logRows(logs: LogEntry[]) {
+  return logs.map((l) => ({
+    Timestamp: new Date(l.timestamp).toLocaleString(),
+    User: l.username,
+    Email: l.userEmail,
+    Action: logActionLabel(l.action),
+    Details: l.details,
+  }));
+}
+
+/** CSV export of activity logs. */
+export function exportLogsCSV(logs: LogEntry[], filename: string) {
+  const header = "Timestamp,User,Email,Action,Details";
+  const rows = logRows(logs).map((r) =>
+    [r.Timestamp, r.User, r.Email, r.Action, r.Details]
+      .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+      .join(",")
+  );
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `${filename}.csv`);
+}
+
+/** XLSX export of activity logs. */
+export async function exportLogsXLSX(logs: LogEntry[], filename: string) {
+  const XLSX = await import("xlsx");
+  const data = logRows(logs);
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Activity Logs");
+  XLSX.writeFile(wb, `${filename}.xlsx`);
+}
+
+/** PDF export of activity logs (table, auto-paginated). */
+export async function exportLogsPDF(logs: LogEntry[], filename: string) {
+  const { jsPDF } = await import("jspdf");
+  await import("jspdf-autotable");
+  const doc = new jsPDF();
+  doc.text("Activity Logs", 14, 20);
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
+  const head = [["Timestamp", "User", "Email", "Action", "Details"]];
+  const body = logRows(logs).map((r) => [
+    r.Timestamp,
+    r.User,
+    r.Email,
+    r.Action,
+    r.Details,
+  ]);
+  // @ts-expect-error autoTable is added by the plugin at runtime
+  doc.autoTable({ head, body, startY: 32 });
+  doc.save(`${filename}.pdf`);
 }
 
 // ---------------- IMPORT HELPERS ----------------

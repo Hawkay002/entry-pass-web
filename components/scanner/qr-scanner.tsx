@@ -15,7 +15,7 @@ export type ScanOutcome =
   | { kind: "idle" }
   | { kind: "searching" }
   | { kind: "granted"; name: string; id: string }
-  | { kind: "already"; name: string; id: string; status: string }
+  | { kind: "already"; name: string; id: string; status: string; scannedBy?: string; scannedAt?: number | null }
   | { kind: "invalid"; id: string }
   | { kind: "error"; message: string };
 
@@ -326,6 +326,14 @@ function ScanResult({ outcome }: { outcome: ScanOutcome }) {
             <p>{outcome.name}</p>
             <p className="font-mono text-xs opacity-70">ID: {outcome.id}</p>
             <p className="text-xs opacity-70">Current status: {outcome.status}</p>
+            {outcome.scannedBy && (
+              <p className="text-xs opacity-70">
+                Scanned by: <span className="font-medium">{outcome.scannedBy}</span>
+                {outcome.scannedAt
+                  ? ` · ${new Date(outcome.scannedAt).toLocaleString()}`
+                  : ""}
+              </p>
+            )}
           </div>
         </div>
       )}

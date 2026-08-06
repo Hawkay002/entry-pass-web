@@ -9,7 +9,7 @@ import { LogsTable } from "@/components/logs/logs-table";
 
 export default async function LogsPage() {
   const user = await getAppUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?reason=expired");
   if (user.role !== "admin") redirect("/tickets");
 
   const res = await fetchActivityLogs();

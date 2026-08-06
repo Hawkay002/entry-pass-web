@@ -117,6 +117,8 @@ export default function ScannerPage() {
             name: res.ticket?.name ?? "",
             id: ticketId,
             status: res.ticket?.status ?? "",
+            scannedBy: res.ticket?.scannedBy,
+            scannedAt: res.ticket?.scannedAt,
           };
         return { kind: "invalid", id: ticketId };
       }

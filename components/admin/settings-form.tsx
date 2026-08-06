@@ -28,6 +28,7 @@ export function SettingsForm() {
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
+  const [seeded, setSeeded] = useState(false);
 
   async function handleClear() {
     setClearOpen(false);
@@ -43,12 +44,16 @@ export function SettingsForm() {
     }
   }
 
-  // Seed local state once settings load.
-  if (loading && name === "" && settings.name) {
-    setName(settings.name);
-    setPlace(settings.place);
-    setDeadline(settings.deadline);
-  }
+  // Seed local state once when settings first arrive (not during render).
+  useEffect(() => {
+    if (!loading && !seeded && (settings.name || settings.place || settings.deadline)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time seed from server data
+      setName(settings.name);
+      setPlace(settings.place);
+      setDeadline(settings.deadline);
+      setSeeded(true);
+    }
+  }, [loading, seeded, settings.name, settings.place, settings.deadline]);
 
   function sync(field: "name" | "place" | "deadline", value: string) {
     setEdited(true);

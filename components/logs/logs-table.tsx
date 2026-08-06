@@ -3,7 +3,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
-import { Loader2, Search, Trash2, Filter } from "lucide-react";
+import { Loader2, Search, Trash2, Filter, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { deleteLogs } from "@/app/actions/admin";
+import { exportLogsCSV, exportLogsXLSX, exportLogsPDF } from "@/lib/import-export";
 import type { ActivityLog, LogAction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +73,10 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,11 +84,30 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
       if (typeRef.current && !typeRef.current.contains(e.target as Node)) {
         setTypeOpen(false);
       }
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  async function handleExport(format: "csv" | "xlsx" | "pdf") {
+    setExportOpen(false);
+    setExporting(format);
+    try {
+      const name = "activity_logs";
+      if (format === "csv") exportLogsCSV(filtered, name);
+      else if (format === "xlsx") await exportLogsXLSX(filtered, name);
+      else await exportLogsPDF(filtered, name);
+      toast.success(`Exported ${filtered.length} log(s) as ${format.toUpperCase()}`);
+    } catch (err) {
+      toast.error("Export failed", { description: (err as Error).message });
+    }
+    setExporting(null);
+  }
+
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler hint, not a bug
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return logs.filter((l) => {
@@ -139,6 +162,35 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Activity Logs</h2>
         <div className="flex gap-2">
+          {/* Export dropdown */}
+          <div ref={exportRef} className="relative">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={exporting !== null || filtered.length === 0}
+              onClick={() => setExportOpen((o) => !o)}
+            >
+              {exporting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-4 w-4" />
+              )}
+              Export
+            </Button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full z-20 mt-1 w-36 rounded-lg border border-white/10 bg-[rgb(20,20,20)] py-1 shadow-xl">
+                {(["csv", "xlsx", "pdf"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => handleExport(f)}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-white/5 hover:text-white"
+                  >
+                    {f.toUpperCase()} (.{f})
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {selectionMode ? (
             <>
               <Button

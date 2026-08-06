@@ -17,7 +17,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await getAppUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?reason=expired");
 
   // Auto-absent: check if deadline passed and mark coming-soon tickets.
   // Runs directly via Admin SDK — no server action dependency.

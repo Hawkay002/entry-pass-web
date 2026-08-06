@@ -82,7 +82,7 @@ export async function createTicket(input: {
 export async function validateTicket(
   ticketId: string
 ): Promise<
-  | { ok: true; outcome: "granted" | "already" | "invalid"; ticket: { name: string; id: string; status: string } | null }
+  | { ok: true; outcome: "granted" | "already" | "invalid"; ticket: { name: string; id: string; status: string; scannedBy?: string; scannedAt?: number | null } | null }
   | { ok: false; error: string }
 > {
   const user = await getAppUser();
@@ -122,10 +122,14 @@ export async function validateTicket(
   }
 
   // Already scanned or in another status — report without mutating.
+  // Include who scanned it and when, to help staff resolve door disputes.
+  const scannedBy = data.scannedBy != null ? String(data.scannedBy) : undefined;
+  const scannedAt =
+    data.scannedAt != null ? Number(data.scannedAt) : undefined;
   return {
     ok: true,
     outcome: "already",
-    ticket: { name, id: ticketId, status },
+    ticket: { name, id: ticketId, status, scannedBy, scannedAt },
   };
 }
 
