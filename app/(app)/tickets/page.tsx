@@ -176,10 +176,10 @@ export default function TicketsPage() {
               </Label>
               <div className="flex gap-2">
                 <Select value={dialCode} onValueChange={(v) => setDialCode(v ?? DEFAULT_DIAL_CODE)}>
-                  <SelectTrigger className="w-[110px] shrink-0">
+                  <SelectTrigger className="w-[120px] shrink-0">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[180px]">
                     {sortedCountryCodes.map((c) => (
                       <SelectItem key={c.iso + c.code} value={c.code}>
                         {c.code} {c.country}
