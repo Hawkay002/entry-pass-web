@@ -70,22 +70,24 @@ function BackgroundPickerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid max-h-[50vh] grid-cols-3 gap-3 overflow-y-auto py-2 scrollbar-thin">
+        <div className="grid max-h-[50vh] grid-cols-2 gap-4 overflow-y-auto py-2 pr-1 scrollbar-thin">
           {BACKGROUND_PRESETS.map((preset) => (
             <button
               key={preset.id}
               onClick={() => setSelected(preset.id)}
               className={cn(
-                "group relative aspect-video overflow-hidden rounded-lg border-2 transition-all",
+                "group relative aspect-video shrink-0 overflow-hidden rounded-lg border-2 transition-all",
                 selected === preset.id
                   ? "border-accent-secondary ring-2 ring-accent-secondary/40"
                   : "border-white/10 hover:border-white/30"
               )}
             >
-              {preset.url ? (
-                // eslint-disable-next-line @next/next/no-img-element -- lazy-loaded thumbnails
+              {preset.thumb ? (
+                // Tiny WebP thumbnail (~5KB) — instant load. Full-res PNG only
+                // fetches when selected as the active background.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={preset.url}
+                  src={preset.thumb}
                   alt={preset.label}
                   loading="lazy"
                   decoding="async"

@@ -37,7 +37,7 @@ export function HelpTray({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div
       className={cn(
-        "fixed right-0 top-[70%] z-50 flex max-h-[45vh] w-[300px] flex-col -translate-y-1/2 rounded-l-[20px] border border-r-0 border-white/20 bg-black/90 backdrop-blur-xl shadow-[-10px_0_30px_rgba(0,0,0,0.5)] transition-transform duration-400 sm:top-1/2 sm:max-h-[65vh]",
+        "fixed right-0 top-[70%] z-50 flex max-h-[45vh] w-[300px] flex-col -translate-y-1/2 rounded-l-[20px] border border-r-0 border-white/20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] transition-transform duration-400 sm:top-1/2 sm:max-h-[65vh] glass-panel",
         open ? "translate-x-0" : "translate-x-full"
       )}
       style={{ transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
