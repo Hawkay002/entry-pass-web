@@ -91,7 +91,7 @@ export function SearchableSelect({
         className="flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm whitespace-nowrap transition-colors outline-none hover:bg-input/80 dark:bg-input/60 dark:hover:bg-input/80"
       >
         <span className={cn("flex items-center gap-1.5 truncate", !selected && "text-muted-foreground")}>
-          {selected?.flag && <span className={cn("fi fis", `fi-${selected.flag}`)} />}
+          {selected?.flag && <span className={cn("fi text-base leading-none", `fi-${selected.flag}`)} />}
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -141,7 +141,7 @@ export function SearchableSelect({
                       : "text-foreground hover:bg-white/10"
                   )}
                 >
-                  {opt.flag && <span className={cn("fi fis shrink-0", `fi-${opt.flag}`)} />}
+                  {opt.flag && <span className={cn("fi text-sm leading-none shrink-0", `fi-${opt.flag}`)} />}
                   <span className="truncate">{opt.label}</span>
                 </button>
               ))
