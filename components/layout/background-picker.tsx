@@ -27,7 +27,7 @@ export function BackgroundPickerButton() {
         type="button"
         onClick={() => setOpen(true)}
         title="Change background"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.02] text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
       >
         <HugeiconsIcon icon={Image03Icon} size={16} />
       </button>

@@ -1111,7 +1111,7 @@ function FactoryResetPanel() {
   }
 
   return (
-    <div className="glass-panel space-y-4 p-6 text-center">
+    <div className="pt-2 text-center">
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
