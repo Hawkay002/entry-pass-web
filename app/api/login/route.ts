@@ -79,13 +79,17 @@ export async function POST(req: NextRequest) {
       expiresIn: expiresInMs,
     });
 
-    // Log the login. The username is "ADMIN" for admin emails; for staff we
-    // use their display name or email (matching how getAppUser derives it).
+    // Log the login. Uses the Google display name (decoded.name) for staff,
+    // falling back to email if unavailable. Admins log as "ADMIN".
     const isAdminLogin = ADMIN_EMAILS.includes(email.toLowerCase());
+    const displayName =
+      typeof decoded.name === "string" && decoded.name.trim()
+        ? decoded.name.trim()
+        : email;
     const logUser: AppUser = {
       uid: decoded.uid,
       email,
-      username: isAdminLogin ? "ADMIN" : (decoded.name || email),
+      username: isAdminLogin ? "ADMIN" : displayName,
       role: isAdminLogin ? "admin" : "staff",
     };
     await logActionToRedis(logUser, "LOGIN", `${logUser.username} signed in`);
