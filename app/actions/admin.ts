@@ -17,9 +17,9 @@ import type {
   StaffUser,
 } from "@/lib/types";
 import { revalidatePath } from "next/cache";
-import { fetchLogsFromRedis, deleteLogsFromRedis } from "@/lib/redis-log";
+import { fetchAllLogs, deleteLogsFromRedis } from "@/lib/redis-log";
 
-// ---------------- Activity Logs (Redis) ----------------
+// ---------------- Activity Logs (Redis + Firestore) ----------------
 
 export async function fetchActivityLogs(): Promise<
   { ok: true; logs: ActivityLog[] } | { ok: false; error: string }
@@ -29,7 +29,8 @@ export async function fetchActivityLogs(): Promise<
   if (user.role !== "admin")
     return { ok: false, error: "Admin role required." };
 
-  const entries = await fetchLogsFromRedis(500);
+  // Full history: Redis (oldest batch) + Firestore (newer overflow).
+  const entries = await fetchAllLogs();
   const logs: ActivityLog[] = entries.map((e) => ({
     id: e.id,
     timestamp: e.timestamp,
