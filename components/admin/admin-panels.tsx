@@ -176,7 +176,7 @@ function MaintenancePanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10">
+    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
       <div className="mb-1 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
         <h4 className="text-sm font-semibold">Maintenance Mode</h4>
@@ -203,7 +203,7 @@ function MaintenancePanel() {
           className="border-amber-500 text-amber-500 hover:bg-amber-500/10"
           onClick={() => setOpen(true)}
         >
-          <Wrench className="mr-2 h-4 w-4" />
+          <Wrench className="mr-1.5 h-3.5 w-3.5" />
           Start Maintenance
         </Button>
         <Button
@@ -213,9 +213,9 @@ function MaintenancePanel() {
           onClick={endMaintenance}
         >
           {applying ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
           ) : (
-            <LockOpen className="mr-2 h-4 w-4" />
+            <LockOpen className="mr-1.5 h-3.5 w-3.5" />
           )}
           End Maintenance
         </Button>
@@ -246,8 +246,8 @@ function MaintenancePanel() {
               disabled={applying}
               onClick={startMaintenance}
             >
-              {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Wrench className="mr-2 h-4 w-4" />
+              {applying && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              <Wrench className="mr-1.5 h-3.5 w-3.5" />
               Activate
             </Button>
           </DialogFooter>
@@ -399,7 +399,7 @@ function RoleManagementPanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10">
+    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Role Management</h4>
@@ -442,7 +442,7 @@ function RoleManagementPanel() {
                       setStaffEmail("");
                     }}
                   >
-                    <UserPlus className="mr-1 h-4 w-4" /> Add Staff
+                    <UserPlus className="mr-1 h-3.5 w-3.5" /> Add Staff
                   </Button>
                   <Button
                     size="sm"
@@ -465,7 +465,7 @@ function RoleManagementPanel() {
                         <span className="font-medium">{s.name}</span>
                         <span className="ml-2 text-muted-foreground">{s.email}</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2.5">
                         <button
                           onClick={() => setEditStaff({ roleId: role.id, oldEmail: s.email, name: s.name, email: s.email })}
                           className="text-muted-foreground hover:text-accent-secondary"
@@ -525,7 +525,7 @@ function RoleManagementPanel() {
               className="absolute h-0 w-0 opacity-0"
             />
             <Button variant="outline" className="w-full" onClick={() => bulkFileRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" /> Upload File (CSV/JSON/XLSX)
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> Upload File (CSV/JSON/XLSX)
             </Button>
 
             {/* Bulk preview */}
@@ -549,12 +549,12 @@ function RoleManagementPanel() {
             <Button variant="ghost" onClick={() => { setAddStaffOpen(null); setBulkParsed([]); }}>Cancel</Button>
             {bulkParsed.length > 0 ? (
               <Button onClick={handleBulkAdd} disabled={bulkAdding}>
-                {bulkAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {bulkAdding && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Add {bulkParsed.length} Staff
               </Button>
             ) : (
               <Button onClick={handleAddStaff} disabled={addingStaff || !staffName.trim() || !staffEmail.trim()}>
-                {addingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {addingStaff && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                 Add
               </Button>
             )}
@@ -593,7 +593,7 @@ function RoleManagementPanel() {
               onClick={handleEditStaff}
               disabled={editingStaff || !editStaff?.name.trim() || !editStaff?.email.trim()}
             >
-              {editingStaff && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingStaff && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Save Changes
             </Button>
           </DialogFooter>
@@ -622,7 +622,7 @@ function RoleManagementPanel() {
                 setDeleteRoleConfirm(null);
               }}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
               Delete Role
             </Button>
           </DialogFooter>
@@ -657,7 +657,7 @@ function RoleManagementPanel() {
                 setRemoveStaffConfirm(null);
               }}
             >
-              <X className="mr-2 h-4 w-4" />
+              <X className="mr-1.5 h-3.5 w-3.5" />
               Remove & Revoke
             </Button>
           </DialogFooter>
@@ -828,7 +828,7 @@ function RemoteDeviceManagement() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4 border-t border-white/10">
+    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Remote Device Management</h4>
@@ -851,7 +851,7 @@ function RemoteDeviceManagement() {
                 "rounded-xl border p-4 text-left transition-colors",
                 activeRole?.id === role.id
                   ? "border-accent-secondary bg-accent-secondary/10"
-                  : "border-white/10 hover:bg-white/5"
+                  : "border-white/10 bg-white/5 hover:bg-white/10"
               )}
             >
               <p className="text-sm font-medium">{role.name}</p>
@@ -1035,7 +1035,7 @@ function RemoteDeviceManagement() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmLock} disabled={locking}>
-              {locking && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {locking && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Sync &amp; Lock
             </Button>
           </DialogFooter>
@@ -1131,9 +1131,9 @@ function RemoteDeviceManagement() {
               }}
             >
               {unlocking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <LockOpen className="mr-2 h-4 w-4" />
+                <LockOpen className="mr-1.5 h-3.5 w-3.5" />
               )}
               Unlock
             </Button>
@@ -1144,7 +1144,7 @@ function RemoteDeviceManagement() {
                 setConfirmOpen(true);
               }}
             >
-              <Lock className="mr-2 h-4 w-4" />
+              <Lock className="mr-1.5 h-3.5 w-3.5" />
               Sync &amp; Lock
             </Button>
           </DialogFooter>
@@ -1206,7 +1206,7 @@ function KioskPanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-4">
+    <div className="space-y-4 px-6 py-5">
       <div className="mb-1 flex items-center gap-2">
         <ScanLine className="h-5 w-5 text-emerald-400" />
         <h4 className="text-sm font-semibold">Self Check-in Kiosk</h4>
@@ -1245,7 +1245,7 @@ function KioskPanel() {
           </button>
         </div>
         <Button onClick={handleSave} disabled={saving || pin.length < 4}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
           {enabled ? "Update PIN" : "Enable Kiosk"}
         </Button>
         {enabled && (
@@ -1265,7 +1265,7 @@ function KioskPanel() {
             rel="noopener noreferrer"
             className={buttonVariants({ variant: "outline" })}
           >
-            <ExternalLink className="mr-2 h-4 w-4" /> Open Kiosk
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Open Kiosk
           </a>
         )}
       </div>
@@ -1303,7 +1303,7 @@ function FactoryResetPanel() {
         onClick={() => setOpen(true)}
         className="border-destructive text-destructive hover:bg-destructive/10"
       >
-        <Trash2 className="mr-2 h-4 w-4" /> Factory Reset Database
+        <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Factory Reset Database
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -1320,7 +1320,7 @@ function FactoryResetPanel() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleReset} disabled={resetting}>
-              {resetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {resetting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               Nuke Database
             </Button>
           </DialogFooter>
