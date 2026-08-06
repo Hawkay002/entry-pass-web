@@ -184,6 +184,7 @@ export default function TicketsPage() {
                     label: `${c.code} ${c.country}`,
                   }))}
                   placeholder="Code"
+                  dropAlign="right"
                   className="w-[140px] shrink-0"
                 />
                 <Input
