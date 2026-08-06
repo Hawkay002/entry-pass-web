@@ -99,7 +99,9 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className={cn(
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          className={cn(
           "absolute z-50 overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
           effectiveAlign === "right"
             ? `left-full top-1/2 ml-1 -translate-y-1/2 ${panelWidth}`
