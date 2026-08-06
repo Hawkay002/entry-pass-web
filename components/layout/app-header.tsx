@@ -100,7 +100,7 @@ export function AppHeader({
         </div>
         {/* Account + signout wrapper, centered */}
         <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-1 text-sm">
+          <div className="glass-pill inline-flex items-center gap-2 rounded-lg px-3 py-1 text-sm">
             <BackgroundPickerButton />
             <span className="h-5 w-px bg-white/10" />
             <span className="h-2 w-2 rounded-full bg-success-green" />

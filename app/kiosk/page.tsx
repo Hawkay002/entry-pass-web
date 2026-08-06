@@ -128,7 +128,7 @@ function PinGate({ onUnlock }: { onUnlock: (pin: string) => void }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f0f0f] px-6 text-white">
+    <div className="glass-panel mx-auto flex max-w-md flex-col items-center justify-center px-8 py-10 text-white">
       <div className="mb-2 flex items-center gap-2 text-emerald-400">
         <ScanLineIcon className="h-7 w-7" />
         <h1 className="text-2xl font-semibold tracking-tight">Self Check-in</h1>
@@ -357,7 +357,7 @@ function KioskScanner({ pin, onLock }: { pin: string; onLock: () => void }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f0f0f] px-6 py-8 text-white">
+    <div className="glass-panel mx-auto flex max-w-md flex-col items-center justify-center px-6 py-8 text-white">
       <div className="mb-6 flex items-center gap-2 text-emerald-400">
         <ScanLineIcon className="h-6 w-6" />
         <h1 className="text-xl font-semibold">Self Check-in</h1>

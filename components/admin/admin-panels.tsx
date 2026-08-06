@@ -77,7 +77,7 @@ const LOCKABLE_TABS: { value: TabName; label: string }[] = [
 
 export function AdminPanels() {
   return (
-    <div className="space-y-10 border-t border-white/5 pt-8">
+    <div className="space-y-6 border-t border-white/5 pt-8">
       <KioskPanel />
       <MaintenancePanel />
       <RoleManagementPanel />
@@ -169,7 +169,7 @@ function MaintenancePanel() {
   }
 
   return (
-    <div className="border-t border-white/5 pt-8">
+    <div className="glass-panel space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
         <h3 className="text-lg font-semibold">Maintenance Mode</h3>
@@ -307,7 +307,7 @@ function RoleManagementPanel() {
   }
 
   return (
-    <div>
+    <div className="glass-panel space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h3 className="text-lg font-semibold">Role Management</h3>
@@ -642,7 +642,7 @@ function RemoteDeviceManagement() {
   }
 
   return (
-    <div className="border-t border-white/5 pt-8">
+    <div className="glass-panel space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h3 className="text-lg font-semibold">Remote Device Management</h3>
@@ -1020,7 +1020,7 @@ function KioskPanel() {
   }
 
   return (
-    <div>
+    <div className="glass-panel space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <ScanLine className="h-5 w-5 text-emerald-400" />
         <h3 className="text-lg font-semibold">Self Check-in Kiosk</h3>
@@ -1111,7 +1111,7 @@ function FactoryResetPanel() {
   }
 
   return (
-    <div className="border-t border-white/5 pt-8 text-center">
+    <div className="glass-panel space-y-4 p-6 text-center">
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
