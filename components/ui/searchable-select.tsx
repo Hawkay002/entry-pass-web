@@ -13,6 +13,7 @@ export interface SearchableOption {
   label: string;       // shown in the dropdown list
   triggerLabel?: string; // shown in the trigger button (shorter, e.g. just the code)
   flag?: string; // ISO 3166-1 alpha-2 lowercase for flag-icons (e.g. "in")
+  key?: string;  // unique key (defaults to value, but should be unique for duplicates)
 }
 
 export function SearchableSelect({
@@ -130,7 +131,7 @@ export function SearchableSelect({
             ) : (
               filtered.map((opt) => (
                 <button
-                  key={opt.value}
+                  key={opt.key ?? opt.value + '-' + opt.flag}
                   type="button"
                   onClick={() => {
                     onChange(opt.value);

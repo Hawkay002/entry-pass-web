@@ -184,6 +184,7 @@ export default function TicketsPage() {
                     label: `${c.code} ${c.country}`,
                     triggerLabel: c.code,
                     flag: c.iso,
+                    key: c.iso,
                   }))}
                   placeholder="Code"
                   dropAlign="right"
