@@ -68,6 +68,7 @@ export async function saveSettings(
         name: settings.name,
         place: settings.place,
         deadline: settings.deadline,
+        timezone: settings.timezone ?? "+05:30",
       },
       { merge: true }
     );

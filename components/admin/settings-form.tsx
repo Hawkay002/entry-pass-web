@@ -8,6 +8,13 @@ import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -20,11 +27,38 @@ import {
 import { useSettings } from "@/hooks/use-settings";
 import { saveSettings, clearSettings } from "@/app/actions/admin";
 
+/** Common timezones with their UTC offsets (value = offset string for ISO date). */
+const TIMEZONES: { label: string; offset: string }[] = [
+  { label: "Local (auto-detect)", offset: "auto" },
+  { label: "IST — India (UTC+5:30)", offset: "+05:30" },
+  { label: "GMT — UK (UTC+0)", offset: "+00:00" },
+  { label: "CET — Central Europe (UTC+1)", offset: "+01:00" },
+  { label: "EET — Eastern Europe (UTC+2)", offset: "+02:00" },
+  { label: "GST — Gulf (UTC+4)", offset: "+04:00" },
+  { label: "PKT — Pakistan (UTC+5)", offset: "+05:00" },
+  { label: "BST — Bangladesh (UTC+6)", offset: "+06:00" },
+  { label: "ICT — Indonesia (UTC+7)", offset: "+07:00" },
+  { label: "CST — China/Singapore (UTC+8)", offset: "+08:00" },
+  { label: "JST — Japan (UTC+9)", offset: "+09:00" },
+  { label: "ACST — Australia Central (UTC+9:30)", offset: "+09:30" },
+  { label: "AEST — Australia East (UTC+10)", offset: "+10:00" },
+  { label: "NZST — New Zealand (UTC+12)", offset: "+12:00" },
+  { label: "EST — US East (UTC-5)", offset: "-05:00" },
+  { label: "CST-US — US Central (UTC-6)", offset: "-06:00" },
+  { label: "MST — US Mountain (UTC-7)", offset: "-07:00" },
+  { label: "PST — US Pacific (UTC-8)", offset: "-08:00" },
+  { label: "AKST — Alaska (UTC-9)", offset: "-09:00" },
+  { label: "HST — Hawaii (UTC-10)", offset: "-10:00" },
+  { label: "BRT — Brazil (UTC-3)", offset: "-03:00" },
+  { label: "ART — Argentina (UTC-3)", offset: "-03:00" },
+];
+
 export function SettingsForm() {
   const { settings, loading } = useSettings();
   const [name, setName] = useState("");
   const [place, setPlace] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [tz, setTz] = useState("+05:30");
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -50,10 +84,16 @@ export function SettingsForm() {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time seed from server data
       setName(settings.name);
       setPlace(settings.place);
-      setDeadline(settings.deadline);
+      // Strip any existing timezone offset so datetime-local shows a clean value.
+      // "2026-08-04T17:00:00+05:30" → "2026-08-04T17:00"
+      const cleanDeadline = settings.deadline
+        ? settings.deadline.replace(/[+-]\d{2}:\d{2}(:\d{2})?$/, "").replace(/:\d{2}$/, "")
+        : "";
+      setDeadline(cleanDeadline);
+      if (settings.timezone) setTz(settings.timezone);
       setSeeded(true);
     }
-  }, [loading, seeded, settings.name, settings.place, settings.deadline]);
+  }, [loading, seeded, settings.name, settings.place, settings.deadline, settings.timezone]);
 
   function sync(field: "name" | "place" | "deadline", value: string) {
     setEdited(true);
@@ -64,12 +104,17 @@ export function SettingsForm() {
 
   async function handleSave() {
     setSaving(true);
-    // Append the user's timezone offset to the deadline so the server
-    // (running in UTC on Vercel) interprets it in the user's local time.
-    const tzOffset = -new Date().getTimezoneOffset();
-    const offsetStr = `${tzOffset >= 0 ? "+" : ""}${String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, "0")}:${String(Math.abs(tzOffset) % 60).padStart(2, "0")}`;
+    // Append the selected timezone offset to the deadline so the server
+    // (running in UTC on Vercel) interprets it correctly.
+    let offsetStr: string;
+    if (tz === "auto") {
+      const tzOffset = -new Date().getTimezoneOffset();
+      offsetStr = `${tzOffset >= 0 ? "+" : ""}${String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, "0")}:${String(Math.abs(tzOffset) % 60).padStart(2, "0")}`;
+    } else {
+      offsetStr = tz;
+    }
     const deadlineWithTz = deadline ? deadline + ":00" + offsetStr : deadline;
-    const res = await saveSettings({ name, place, deadline: deadlineWithTz });
+    const res = await saveSettings({ name, place, deadline: deadlineWithTz, timezone: tz });
     setSaving(false);
     if (res.ok) {
       toast.success("Configuration saved");
@@ -105,13 +150,27 @@ export function SettingsForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="arrivalDeadline">Deadline</Label>
-          <Input
-            id="arrivalDeadline"
-            type="datetime-local"
-            value={deadline}
-            onChange={(e) => sync("deadline", e.target.value)}
-            className="[color-scheme:dark]"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="arrivalDeadline"
+              type="datetime-local"
+              value={deadline}
+              onChange={(e) => sync("deadline", e.target.value)}
+              className="[color-scheme:dark] flex-1"
+            />
+            <Select value={tz} onValueChange={(v) => { setTz(v ?? "+05:30"); setEdited(true); }}>
+              <SelectTrigger className="w-[160px] shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((t) => (
+                  <SelectItem key={t.offset} value={t.offset}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <Button onClick={handleSave} disabled={saving || (!edited && !loading)}>
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

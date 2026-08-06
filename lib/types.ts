@@ -42,6 +42,7 @@ export interface EventSettings {
   name: string;
   place: string;
   deadline: string; // ISO datetime-local string
+  timezone?: string; // selected timezone offset (e.g. "+05:30", "auto")
 }
 
 export type LogAction =

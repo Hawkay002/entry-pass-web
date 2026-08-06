@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase/client";
 import { paths } from "@/lib/paths";
 import type { EventSettings } from "@/lib/types";
 
-const EMPTY: EventSettings = { name: "", place: "", deadline: "" };
+const EMPTY: EventSettings = { name: "", place: "", deadline: "", timezone: "+05:30" };
 
 export function useSettings() {
   const [settings, setSettings] = useState<EventSettings>(EMPTY);
@@ -25,6 +25,7 @@ export function useSettings() {
             name: d.name ?? "",
             place: d.place ?? "",
             deadline: d.deadline ?? "",
+            timezone: (d.timezone as string) ?? "+05:30",
           });
         } else {
           setSettings(EMPTY);
