@@ -78,9 +78,9 @@ export function SearchableSelect({
         <div className={cn(
           "absolute z-50 overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
           dropAlign === "right"
-            ? "left-full top-1/2 ml-1 -translate-y-1/2 w-56"
+            ? "left-full top-1/2 ml-1 -translate-y-1/2 w-72"
             : dropAlign === "left"
-            ? "right-full top-1/2 mr-1 -translate-y-1/2 w-56"
+            ? "right-full top-1/2 mr-1 -translate-y-1/2 w-72"
             : "left-0 top-full mt-1 w-full min-w-[200px]"
         )}>
           {/* Search */}
