@@ -13,6 +13,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import { authConfig } from "@/lib/env";
 import { paths } from "@/lib/paths";
+import { logActionToRedis } from "@/lib/redis-log";
+import type { AppUser } from "@/lib/auth";
 
 /** Admin emails that auto-receive the admin role claim on login. */
 const ADMIN_EMAILS = ["admin.test@gmail.com", "shovith2@gmail.com"];
@@ -76,6 +78,17 @@ export async function POST(req: NextRequest) {
     const sessionCookie = await auth.createSessionCookie(idToken, {
       expiresIn: expiresInMs,
     });
+
+    // Log the login. The username is "ADMIN" for admin emails; for staff we
+    // use their display name or email (matching how getAppUser derives it).
+    const isAdminLogin = ADMIN_EMAILS.includes(email.toLowerCase());
+    const logUser: AppUser = {
+      uid: decoded.uid,
+      email,
+      username: isAdminLogin ? "ADMIN" : (decoded.name || email),
+      role: isAdminLogin ? "admin" : "staff",
+    };
+    await logActionToRedis(logUser, "LOGIN", `${logUser.username} signed in`);
 
     const res = NextResponse.json({ ok: true });
     res.cookies.set(authConfig.cookieName, sessionCookie, {
