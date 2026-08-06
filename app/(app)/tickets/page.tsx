@@ -29,6 +29,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { createTicket } from "@/app/actions/tickets";
 import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
 import { sortedCountryCodes, DEFAULT_DIAL_CODE } from "@/lib/country-codes";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { Gender, Ticket, TicketType } from "@/lib/types";
 
 // Custom calendar-date-1 inline SVG (age icon).
@@ -175,18 +176,16 @@ export default function TicketsPage() {
                 <Smartphone className="h-3.5 w-3.5" /> Phone
               </Label>
               <div className="flex gap-2">
-                <Select value={dialCode} onValueChange={(v) => setDialCode(v ?? DEFAULT_DIAL_CODE)}>
-                  <SelectTrigger className="w-[120px] shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[180px]">
-                    {sortedCountryCodes.map((c) => (
-                      <SelectItem key={c.iso + c.code} value={c.code}>
-                        {c.code} {c.country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={dialCode}
+                  onChange={setDialCode}
+                  options={sortedCountryCodes.map((c) => ({
+                    value: c.code,
+                    label: `${c.code} ${c.country}`,
+                  }))}
+                  placeholder="Code"
+                  className="w-[140px] shrink-0"
+                />
                 <Input
                   id="phone"
                   type="tel"

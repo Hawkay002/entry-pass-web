@@ -8,13 +8,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -133,19 +127,16 @@ export function SettingsForm() {
               onChange={(e) => sync("deadline", e.target.value)}
               className="[color-scheme:dark] flex-1"
             />
-            <Select value={tz} onValueChange={(v) => { setTz(v ?? DEFAULT_TZ); setEdited(true); }}>
-              <SelectTrigger className="w-[160px] shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[200px]">
-                <SelectItem value="auto">Local (auto-detect)</SelectItem>
-                {TIMEZONES.map((t) => (
-                  <SelectItem key={t.offset} value={t.offset}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={tz}
+              onChange={(v) => { setTz(v); setEdited(true); }}
+              options={[
+                { value: "auto", label: "Local (auto-detect)" },
+                ...TIMEZONES.map((t) => ({ value: t.offset, label: t.label })),
+              ]}
+              placeholder="Timezone"
+              className="w-[180px] shrink-0"
+            />
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving || (!edited && !loading)}>
