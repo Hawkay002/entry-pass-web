@@ -43,18 +43,20 @@ export async function createTicket(input: {
   name: string;
   gender: Gender;
   age: number;
-  phone: string; // raw digits, will be prefixed +91
+  phone: string; // raw digits, will be prefixed with the selected dial code
   ticketType: TicketType;
+  dialCode?: string; // e.g. "+91" (default "+91")
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const user = await getAppUser();
   if (!user) return { ok: false, error: "Not authenticated." };
 
+  const dial = input.dialCode ?? "+91";
   const now = Date.now();
   const ticket = {
     name: input.name.trim(),
     gender: input.gender,
     age: input.age,
-    phone: "+91" + input.phone.replace(/\D/g, ""),
+    phone: dial + input.phone.replace(/\D/g, ""),
     ticketType: input.ticketType,
     status: "coming-soon" as const,
     scanned: false,

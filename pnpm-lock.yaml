@@ -38,6 +38,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      countries-and-timezones:
+        specifier: ^3.10.0
+        version: 3.10.0
       firebase:
         specifier: 12.16.0
         version: 12.16.0
@@ -2164,6 +2167,10 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  countries-and-timezones@3.10.0:
+    resolution: {integrity: sha512-HQ1GtXWNZy0r5MnZMLF9xmBmFNmtDVBeKQgX/5DY+RVmcZTODA+EPN/JLPCYRNP86nHG0QQrb1yJwGzXeqCCXw==}
+    engines: {node: '>=8.x', npm: '>=5.x'}
 
   crc-32@1.2.2:
     resolution: {integrity: sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==}
@@ -6560,6 +6567,8 @@ snapshots:
       parse-json: 5.2.0
     optionalDependencies:
       typescript: 6.0.3
+
+  countries-and-timezones@3.10.0: {}
 
   crc-32@1.2.2: {}
 

@@ -28,6 +28,7 @@ import { TicketCard } from "@/components/tickets/ticket-card";
 import { useSettings } from "@/hooks/use-settings";
 import { createTicket } from "@/app/actions/tickets";
 import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
+import { sortedCountryCodes, DEFAULT_DIAL_CODE } from "@/lib/country-codes";
 import type { Gender, Ticket, TicketType } from "@/lib/types";
 
 // Custom calendar-date-1 inline SVG (age icon).
@@ -75,6 +76,7 @@ export default function TicketsPage() {
   const [isSharing, setIsSharing] = useState(false);
   const [ticketTypeVal, setTicketTypeVal] = useState<TicketType>("Classic");
   const [genderVal, setGenderVal] = useState<Gender>("Male");
+  const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
   const ticketRef = useRef<HTMLDivElement>(null);
 
   async function handleShare() {
@@ -122,6 +124,7 @@ export default function TicketsPage() {
       age: Number(values.age),
       phone: values.phone,
       ticketType: values.ticketType,
+      dialCode,
     });
     if (res.ok) {
       setPreview({
@@ -129,7 +132,7 @@ export default function TicketsPage() {
         name: values.name,
         age: Number(values.age),
         gender: values.gender,
-        phone: "+91" + values.phone,
+        phone: dialCode + values.phone,
         ticketType: values.ticketType,
       });
       toast.success("Pass generated", { description: values.name });
@@ -169,15 +172,30 @@ export default function TicketsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-1.5">
-                <Smartphone className="h-3.5 w-3.5" /> Phone (10 Digits)
+                <Smartphone className="h-3.5 w-3.5" /> Phone
               </Label>
-              <Input
-                id="phone"
-                type="tel"
-                inputMode="numeric"
-                {...register("phone")}
-                placeholder="Phone (10 Digits)"
-              />
+              <div className="flex gap-2">
+                <Select value={dialCode} onValueChange={(v) => setDialCode(v ?? DEFAULT_DIAL_CODE)}>
+                  <SelectTrigger className="w-[110px] shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortedCountryCodes.map((c) => (
+                      <SelectItem key={c.iso + c.code} value={c.code}>
+                        {c.code} {c.country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  {...register("phone")}
+                  placeholder="Phone Number"
+                  className="flex-1"
+                />
+              </div>
               {errors.phone && (
                 <p className="text-xs text-destructive">{errors.phone.message}</p>
               )}

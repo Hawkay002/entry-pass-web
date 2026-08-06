@@ -26,39 +26,14 @@ import {
 } from "@/components/ui/dialog";
 import { useSettings } from "@/hooks/use-settings";
 import { saveSettings, clearSettings } from "@/app/actions/admin";
-
-/** Common timezones with their UTC offsets (value = offset string for ISO date). */
-const TIMEZONES: { label: string; offset: string }[] = [
-  { label: "Local (auto-detect)", offset: "auto" },
-  { label: "IST — India (UTC+5:30)", offset: "+05:30" },
-  { label: "GMT — UK (UTC+0)", offset: "+00:00" },
-  { label: "CET — Central Europe (UTC+1)", offset: "+01:00" },
-  { label: "EET — Eastern Europe (UTC+2)", offset: "+02:00" },
-  { label: "GST — Gulf (UTC+4)", offset: "+04:00" },
-  { label: "PKT — Pakistan (UTC+5)", offset: "+05:00" },
-  { label: "BST — Bangladesh (UTC+6)", offset: "+06:00" },
-  { label: "ICT — Indonesia (UTC+7)", offset: "+07:00" },
-  { label: "CST — China/Singapore (UTC+8)", offset: "+08:00" },
-  { label: "JST — Japan (UTC+9)", offset: "+09:00" },
-  { label: "ACST — Australia Central (UTC+9:30)", offset: "+09:30" },
-  { label: "AEST — Australia East (UTC+10)", offset: "+10:00" },
-  { label: "NZST — New Zealand (UTC+12)", offset: "+12:00" },
-  { label: "EST — US East (UTC-5)", offset: "-05:00" },
-  { label: "CST-US — US Central (UTC-6)", offset: "-06:00" },
-  { label: "MST — US Mountain (UTC-7)", offset: "-07:00" },
-  { label: "PST — US Pacific (UTC-8)", offset: "-08:00" },
-  { label: "AKST — Alaska (UTC-9)", offset: "-09:00" },
-  { label: "HST — Hawaii (UTC-10)", offset: "-10:00" },
-  { label: "BRT — Brazil (UTC-3)", offset: "-03:00" },
-  { label: "ART — Argentina (UTC-3)", offset: "-03:00" },
-];
+import { TIMEZONES, DEFAULT_TZ } from "@/lib/timezones";
 
 export function SettingsForm() {
   const { settings, loading } = useSettings();
   const [name, setName] = useState("");
   const [place, setPlace] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [tz, setTz] = useState("+05:30");
+  const [tz, setTz] = useState(DEFAULT_TZ);
   const [saving, setSaving] = useState(false);
   const [edited, setEdited] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
@@ -163,6 +138,7 @@ export function SettingsForm() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="auto">Local (auto-detect)</SelectItem>
                 {TIMEZONES.map((t) => (
                   <SelectItem key={t.offset} value={t.offset}>
                     {t.label}
