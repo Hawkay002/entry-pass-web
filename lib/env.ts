@@ -79,3 +79,8 @@ export const authConfig = {
     maxAge: 60 * 60 * 24 * 14,
   },
 } as const;
+
+/** Optional: Google Wallet pass class ID for the "Save to Wallet" button.
+ *  Set this after creating a pass class in the Google Pay & Wallet Console.
+ *  If absent, the Wallet button shows "Coming Soon". */
+export const GOOGLE_WALLET_PASS_CLASS_ID = process.env.GOOGLE_WALLET_PASS_CLASS_ID ?? "";

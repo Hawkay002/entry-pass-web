@@ -37,7 +37,7 @@ export function TicketViewModal({
     if (!ticket || !cardRef.current) return;
     setSharing(true);
     try {
-      await shareTicketViaWhatsApp(cardRef.current, ticket.name, ticket.phone);
+      await shareTicketViaWhatsApp(cardRef.current, ticket.name, ticket.phone, ticket.id);
     } catch {
       setSharing(false);
     }

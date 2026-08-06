@@ -7,7 +7,8 @@ import { toPng } from "html-to-image";
 export async function shareTicketViaWhatsApp(
   element: HTMLElement,
   name: string,
-  phone: string
+  phone: string,
+  ticketId?: string
 ): Promise<void> {
   // Ensure the Outfit font is fully loaded before capturing, so text metrics
   // are identical across devices (avoids fallback-font height differences).
@@ -67,7 +68,10 @@ export async function shareTicketViaWhatsApp(
   await new Promise((r) => setTimeout(r, 1500));
 
   const digits = phone.replace(/\D/g, "");
-  const message = `Hello ${name}, here is your Entry Pass 🎫.\n*Keep this QR code ready at the entrance.*`;
+  const ticketUrl = ticketId
+    ? `\n\n🎫 View your interactive ticket: ${window.location.origin}/ticket/${ticketId}`
+    : "";
+  const message = `Hello ${name}, here is your Entry Pass 🎫.\n*Keep this QR code ready at the entrance.*${ticketUrl}`;
   window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(
     message
   )}`;

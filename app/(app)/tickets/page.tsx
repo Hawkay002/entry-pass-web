@@ -87,7 +87,8 @@ export default function TicketsPage() {
       await shareTicketViaWhatsApp(
         ticketRef.current,
         preview.name,
-        preview.phone
+        preview.phone,
+        preview.id
       );
     } catch {
       toast.error("Could not generate ticket image");
