@@ -176,7 +176,9 @@ function MaintenancePanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
+    <>
+    <div className="mx-6 border-t border-white/10" />
+    <div className="space-y-4 px-6 py-5">
       <div className="mb-1 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
         <h4 className="text-sm font-semibold">Maintenance Mode</h4>
@@ -254,6 +256,7 @@ function MaintenancePanel() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
 
@@ -399,7 +402,9 @@ function RoleManagementPanel() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
+    <>
+    <div className="mx-6 border-t border-white/10" />
+    <div className="space-y-4 px-6 py-5">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Role Management</h4>
@@ -664,6 +669,7 @@ function RoleManagementPanel() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
 
@@ -828,7 +834,9 @@ function RemoteDeviceManagement() {
   }
 
   return (
-    <div className="space-y-4 px-6 py-5 mx-6 border-t border-white/10 rounded-t-lg">
+    <>
+    <div className="mx-6 border-t border-white/10" />
+    <div className="space-y-4 px-6 py-5">
       <div className="mb-1 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
         <h4 className="text-sm font-semibold">Remote Device Management</h4>
@@ -1151,6 +1159,7 @@ function RemoteDeviceManagement() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }
 
