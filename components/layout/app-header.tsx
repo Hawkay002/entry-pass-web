@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { Bell, LogOut, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BackgroundPickerButton } from "./background-picker";
 import { AppNav } from "./app-nav";
 import type { TabName } from "@/lib/types";
 
@@ -76,6 +77,7 @@ export function AppHeader({
 
   const accountInline = (
     <span className="mx-2 hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+      <BackgroundPickerButton />
       <span className="h-2 w-2 rounded-full bg-success-green" />
       <span className="font-semibold text-accent-secondary">{userEmail}</span>
     </span>
@@ -99,6 +101,8 @@ export function AppHeader({
         {/* Account + signout wrapper, centered */}
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-1 text-sm">
+            <BackgroundPickerButton />
+            <span className="h-5 w-px bg-white/10" />
             <span className="h-2 w-2 rounded-full bg-success-green" />
             <span className="font-semibold text-accent-secondary">{userEmail}</span>
             <Button

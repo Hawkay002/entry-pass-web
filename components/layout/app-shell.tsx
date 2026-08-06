@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Starfield } from "./starfield";
 import { AppHeader } from "./app-header";
+import { useBackground } from "@/hooks/use-background";
 import { useRemoteLocks } from "@/hooks/use-remote-locks";
 import { useStaffCheck } from "@/hooks/use-staff-check";
 import { HelpTray } from "@/components/layout/help-tray";
@@ -37,6 +38,7 @@ export function AppShell({
     isAdmin ? null : userEmail,
     username
   );
+  const { preset } = useBackground();
 
   // Staff check: if admin removes this staff member, auto-logout instantly.
   useStaffCheck(userEmail, isAdmin);
@@ -61,7 +63,15 @@ export function AppShell({
 
   return (
     <div className="relative min-h-screen">
-      <Starfield />
+      {preset.url ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${preset.url})` }}
+        />
+      ) : (
+        <Starfield />
+      )}
       <div className="relative z-10">
         <AppHeader
           isAdmin={isAdmin}
