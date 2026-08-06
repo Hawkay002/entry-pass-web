@@ -30,18 +30,19 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 ## Features
 
 ### Core Ticket Loop
-- **Issue Tickets** — Form with live QR preview, instant WhatsApp share with auto-snapshot at 4x resolution
+- **Issue Tickets** — Form with live QR preview, instant WhatsApp share with auto-snapshot at 4x resolution. Country code dropdown (203 countries with flags, India default) for phone numbers
 - **Guest List** — 7 sort options, 4 filters (type/status/gender + search), bulk delete, import/export
-- **Scanner** — Camera QR decode at 480px for maximum speed, three-way validation (granted / already scanned / invalid)
+- **Scanner** — Camera QR decode at 480px for maximum speed, three-way validation (granted / already scanned / invalid). Shows **who scanned** + **when** on duplicate scans
 
 ### Admin & Security
-- **Dynamic Roles** — Admin creates roles and adds staff. Google Sign-In maps emails automatically
+- **Dynamic Roles** — Admin creates roles and adds staff (single or **bulk upload** via CSV/JSON/XLSX). Edit staff name/email later. Google Sign-In maps emails automatically
 - **Remote Lock** — Lock or unlock specific tabs per staff member with live status badges. Selective unlock
 - **Maintenance Mode** — Lock all staff instantly with duration timer. Auto-unlock when time expires
 - **Staff Auto-Logout** — Removing a staff member instantly revokes their session and kicks them out
-- **Auto-Absent** — Deadline-based status automation via realtime onSnapshot. Zero page reload
-- **Activity Logs** — 11 colored action types. Redis-backed for zero Firestore quota usage
+- **Auto-Absent** — Deadline-based status automation with **timezone-aware** offsets (38 zones, UTC-12 to UTC+14). Zero page reload
+- **Activity Logs** — 12 colored action types. **Unlimited** — Redis stores first 1000, overflow routes to Firestore. CSV/XLSX/PDF export of selected logs. All logins logged (incl. Google display name)
 - **Factory Reset** — Nukes the database with an immutable audit trail preserved
+- **Session-Expired UX** — Expired cookies redirect to `/login?reason=expired` with a toast explanation
 
 ### Help & Support
 - **Help Tray** — Slide-out contact directory. Admin can add/edit/delete contacts from the tray or Configuration page. Firestore-backed, realtime updates.
@@ -81,6 +82,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 | **WhatsApp** | [html-to-image](https://github.com/bubkoo/html-to-image) | 1.11.13 |
 | **Motion** | [Framer Motion](https://www.framer.com/motion) | 12.43 |
 | **Toasts** | [Sonner](https://sonner.emilkowal.ski) | 2.0.7 |
+| **Flags** | [flag-icons](https://github.com/lipis/flag-icons) | 7.5 |
+| **Timezones** | [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | (removed — now static curated list) |
 
 ---
 
@@ -303,12 +306,13 @@ Collections are created automatically on first write. The app uses:
 | Collection | Purpose |
 |---|---|
 | `ticket_events_data/shared_event_db/tickets` | Guest tickets |
-| `ticket_events_data/shared_event_db/settings/config` | Event settings (name, venue, deadline) |
+| `ticket_events_data/shared_event_db/settings/config` | Event settings (name, venue, deadline, timezone) |
 | `roles/{roleName}` | Dynamic staff roles |
 | `global_locks/{userEmail}` | Remote tab locks per staff |
-| `global_locks/{userEmail}` | Remote tab locks per staff |
 | `help_contacts` | Admin-managed help tray contacts |
-| `audit_trail` | Reset-proof audit records |
+| `activity_logs/{logId}` | Overflow activity logs (when Redis is full) |
+| `admin_settings/security` | Kiosk PIN (admin-only) |
+| `audit_trail/{doc}` | Factory reset audit records |
 
 ---
 
@@ -321,7 +325,7 @@ Activity logs are stored in [Upstash Redis](https://upstash.com) (not Firestore)
 3. Copy the **REST URL** (`https://xxx.upstash.io`) and **REST Token**
 4. Add them to your environment variables
 
-**Free tier limits:** 500K commands/month, 256MB storage, 10GB transfer - more than enough for activity logs (auto-pruned to last 1000 entries).
+**Free tier limits:** 500K commands/month, 256MB storage, 10GB transfer. Logs are **unlimited** — the first 1000 entries store in Redis; once full, overflow routes automatically to Firestore (`activity_logs` collection). Nothing is ever lost.
 
 ---
 
@@ -409,14 +413,16 @@ entry-pass-web/
 |   |-- env.ts              # Typed + validated env access
 |   |-- types.ts            # Shared data model
 |   |-- paths.ts            # Firestore collection paths
-|   |-- redis-log.ts        # Upstash activity logging (incl. kiosk)
+|   |-- redis-log.ts        # Upstash activity logging + Firestore overflow (incl. kiosk)
 |   |-- rate-limit.ts       # Upstash-backed failure rate limiter
 |   |-- offline-db.ts       # IndexedDB offline cache + scan queue (staff scanner)
 |   |-- kiosk-db.ts         # IndexedDB offline cache + scan queue (kiosk, PII-free)
+|   |-- timezones.ts        # 38 curated timezone offsets (UTC-12 to UTC+14)
+|   |-- country-codes.ts    # 203 country dial codes with ISO flags
 |   |-- guest-list.ts       # Filter/sort helpers (pure)
-|   |-- import-export.ts    # Parse + format (CSV/XLSX/PDF/TXT/DOC/JSON)
+|   |-- import-export.ts    # Parse + format (CSV/XLSX/PDF/TXT/DOC/JSON + logs export)
 |   `-- whatsapp.ts         # Ticket snapshot -> WhatsApp share
-|-- public/                 # Static assets (icons, PWA manifest + service worker, audio)
+|-- public/                 # Static assets (icons, PWA manifest + SW, backgrounds, audio)
 |-- scripts/                # Dev utilities (jose fix, claim setup)
 |-- firestore.rules         # Security rules
 |-- proxy.ts                # Edge middleware (cookie gate)
@@ -495,12 +501,13 @@ interface GlobalLockDoc {
 
 | Action | File | Description |
 |---|---|---|
-| `createTicket` | `actions/tickets.ts` | Create a new ticket with QR |
-| `validateTicket` | `actions/tickets.ts` | Scan validation (granted/already/invalid) |
+| `createTicket` | `actions/tickets.ts` | Create a new ticket with QR (accepts dial code) |
+| `validateTicket` | `actions/tickets.ts` | Scan validation (granted/already/invalid + scannedBy attribution) |
 | `deleteOneTicket` | `actions/tickets.ts` | Delete a single ticket |
-| `autoMarkAbsent` | `actions/tickets.ts` | Deadline-based absent marking |
+| `autoMarkAbsent` | `actions/tickets.ts` | Deadline-based absent marking (timezone-aware) |
 | `syncOfflineScans` | `actions/tickets.ts` | Sync queued offline scans on reconnect (idempotent) |
-| `saveSettings` | `actions/admin.ts` | Save event configuration |
+| `getTicketsForOfflineCache` | `actions/tickets.ts` | Minimal-fields ticket list for scanner offline cache |
+| `saveSettings` | `actions/admin.ts` | Save event configuration (name, venue, deadline, timezone) |
 | `clearSettings` | `actions/admin.ts` | Clear event settings |
 | `saveKioskPin` | `actions/admin.ts` | Set/clear the kiosk PIN (admin-only doc) |
 | `getKioskStatus` | `actions/admin.ts` | Whether the kiosk PIN is enabled (no value exposed) |
@@ -509,6 +516,8 @@ interface GlobalLockDoc {
 | `unlockStaff` | `actions/admin.ts` | Fully unlock a staff member |
 | `createRole` | `actions/roles.ts` | Create a new staff role |
 | `addStaffToRole` | `actions/roles.ts` | Add staff member to a role |
+| `bulkAddStaffToRole` | `actions/roles.ts` | Bulk add staff (CSV/JSON/XLSX) with dedup |
+| `updateStaffInRole` | `actions/roles.ts` | Edit staff name/email |
 | `removeStaffFromRole` | `actions/roles.ts` | Remove staff + revoke tokens |
 | `deleteRole` | `actions/roles.ts` | Delete a role entirely |
 | `importTickets` | `actions/import.ts` | Bulk import with phone dedupe |
@@ -561,11 +570,12 @@ Browser                    Server                      Firebase
 
 ### Auto-Absent
 
-1. Deadline stored with timezone offset (e.g., `2026-08-04T17:00:00+05:30`)
-2. Guest List page polls `/api/auto-absent` every 10s (only when deadline set + coming-soon tickets exist)
-3. Server checks `Date.now() > deadline` with correct timezone
-4. Batch updates all `coming-soon` -> `absent`
-5. `onSnapshot` picks up the change -> table updates live (no refresh)
+1. Admin selects a timezone from 38 options (UTC-12 to UTC+14, India default) and sets a deadline
+2. The timezone offset is appended to the deadline before storing (e.g., `2026-08-04T17:00:00+05:30`)
+3. Guest List page polls `/api/auto-absent` every 10s (only when deadline set + coming-soon tickets exist)
+4. Server (always UTC on Vercel) parses the offset-aware ISO string and checks `Date.now() > deadline`
+5. Batch updates all `coming-soon` -> `absent`
+6. `onSnapshot` picks up the change -> table updates live (no refresh)
 
 ---
 
