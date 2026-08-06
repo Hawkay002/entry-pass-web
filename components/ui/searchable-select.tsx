@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 
 export interface SearchableOption {
   value: string;
-  label: string;
+  label: string;       // shown in the dropdown list
+  triggerLabel?: string; // shown in the trigger button (shorter, e.g. just the code)
   flag?: string; // ISO 3166-1 alpha-2 lowercase for flag-icons (e.g. "in")
 }
 
@@ -92,7 +93,7 @@ export function SearchableSelect({
       >
         <span className={cn("flex items-center gap-1.5 truncate", !selected && "text-muted-foreground")}>
           {selected?.flag && <span className={cn("fi text-base leading-none", `fi-${selected.flag}`)} />}
-          {selected ? selected.label : placeholder}
+          {selected ? (selected.triggerLabel ?? selected.label) : placeholder}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>

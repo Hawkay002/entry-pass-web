@@ -182,12 +182,13 @@ export default function TicketsPage() {
                   options={sortedCountryCodes.map((c) => ({
                     value: c.code,
                     label: `${c.code} ${c.country}`,
+                    triggerLabel: c.code,
                     flag: c.iso,
                   }))}
                   placeholder="Code"
                   dropAlign="right"
                   panelWidth="w-56"
-                  className="w-[140px] shrink-0"
+                  className="w-[80px] shrink-0"
                 />
                 <Input
                   id="phone"
