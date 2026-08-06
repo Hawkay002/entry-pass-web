@@ -174,6 +174,9 @@ export function SettingsForm() {
                 ? new Date(settings.deadline).toLocaleString()
                 : "—"}
             </span>
+            {settings.timezone && settings.timezone !== "auto" && (
+              <span className="text-white"> (UTC{settings.timezone})</span>
+            )}
           </p>
           {settings.deadline && <DeadlineCountdown deadline={settings.deadline} />}
         </div>
