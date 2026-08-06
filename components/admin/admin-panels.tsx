@@ -77,13 +77,15 @@ const LOCKABLE_TABS: { value: TabName; label: string }[] = [
 
 export function AdminPanels() {
   return (
-    <div className="space-y-6 border-t border-white/5 pt-8">
-      <h3 className="text-lg font-semibold">Admin Panel</h3>
-      <KioskPanel />
-      <MaintenancePanel />
-      <RoleManagementPanel />
-      <RemoteDeviceManagement />
-      <FactoryResetPanel />
+    <div className="border-t border-white/5 pt-8">
+      <h3 className="mb-4 text-lg font-semibold">Admin Panel</h3>
+      <div className="glass-panel divide-y divide-white/10 space-y-0">
+        <KioskPanel />
+        <MaintenancePanel />
+        <RoleManagementPanel />
+        <RemoteDeviceManagement />
+        <FactoryResetPanel />
+      </div>
     </div>
   );
 }
@@ -170,10 +172,10 @@ function MaintenancePanel() {
   }
 
   return (
-    <div className="glass-panel space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Wrench className="h-5 w-5 text-amber-500" />
-        <h3 className="text-lg font-semibold">Maintenance Mode</h3>
+        <h4 className="text-base font-semibold">Maintenance Mode</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         Locks all tabs for all staff across all roles simultaneously.
@@ -306,10 +308,10 @@ function RoleManagementPanel() {
   }
 
   return (
-    <div className="glass-panel space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
-        <h3 className="text-lg font-semibold">Role Management</h3>
+        <h4 className="text-base font-semibold">Role Management</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         Create roles and add staff members. Staff log in with Google using their email.
@@ -641,10 +643,10 @@ function RemoteDeviceManagement() {
   }
 
   return (
-    <div className="glass-panel space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <Lock className="h-5 w-5 text-accent-secondary" />
-        <h3 className="text-lg font-semibold">Remote Device Management</h3>
+        <h4 className="text-base font-semibold">Remote Device Management</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         Click a role to select staff and lock their tabs.
@@ -1019,10 +1021,10 @@ function KioskPanel() {
   }
 
   return (
-    <div className="glass-panel space-y-4 p-6">
+    <div className="space-y-4 p-6">
       <div className="mb-3 flex items-center gap-2">
         <ScanLine className="h-5 w-5 text-emerald-400" />
-        <h3 className="text-lg font-semibold">Self Check-in Kiosk</h3>
+        <h4 className="text-base font-semibold">Self Check-in Kiosk</h4>
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
         Set a PIN to enable a public kiosk at <code className="rounded bg-white/10 px-1 py-0.5 text-xs">/kiosk</code> where guests
@@ -1110,7 +1112,7 @@ function FactoryResetPanel() {
   }
 
   return (
-    <div className="pt-2 text-center">
+    <div className="p-6 pt-2 text-center">
       <Button
         variant="outline"
         onClick={() => setOpen(true)}
