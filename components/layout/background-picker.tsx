@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Image03Icon } from "@hugeicons/core-free-icons";
@@ -45,6 +45,13 @@ function BackgroundPickerDialog({
 }) {
   const { bgId, setBackground } = useBackground();
   const [selected, setSelected] = useState(bgId);
+
+  // Keep the selection synced with the live background whenever the dialog
+  // opens or the background changes underneath.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync picker to live value
+    setSelected(bgId);
+  }, [bgId]);
 
   function handleConfirm() {
     setBackground(selected);
