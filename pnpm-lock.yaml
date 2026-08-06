@@ -47,6 +47,9 @@ importers:
       firebase-admin:
         specifier: 14.2.0
         version: 14.2.0(encoding@0.1.13)
+      flag-icons:
+        specifier: ^7.5.0
+        version: 7.5.0
       framer-motion:
         specifier: ^12.43.0
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2661,6 +2664,9 @@ packages:
 
   firebase@12.16.0:
     resolution: {integrity: sha512-CNw6hFBdONkzF8UGLDx/RDRY9gVa5VmJNHd7qi4gdmA3ZuLkuOrhmWefB2l+FN+OxFpN77Itq7aO6zlTi780ag==}
+
+  flag-icons@7.5.0:
+    resolution: {integrity: sha512-kd+MNXviFIg5hijH766tt+3x76ele1AXlo4zDdCxIvqWZhKt4T83bOtxUOOMlTx/EcFdUMH5yvQgYlFh1EqqFg==}
 
   flat-cache@4.0.1:
     resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
@@ -7293,6 +7299,8 @@ snapshots:
       '@firebase/util': 1.15.1
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
+
+  flag-icons@7.5.0: {}
 
   flat-cache@4.0.1:
     dependencies:

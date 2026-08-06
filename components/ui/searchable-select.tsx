@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 export interface SearchableOption {
   value: string;
   label: string;
+  flag?: string; // ISO 3166-1 alpha-2 lowercase for flag-icons (e.g. "in")
 }
 
 export function SearchableSelect({
@@ -89,7 +90,8 @@ export function SearchableSelect({
         onClick={() => setOpen((o) => !o)}
         className="flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm whitespace-nowrap transition-colors outline-none hover:bg-input/80 dark:bg-input/60 dark:hover:bg-input/80"
       >
-        <span className={cn("truncate", !selected && "text-muted-foreground")}>
+        <span className={cn("flex items-center gap-1.5 truncate", !selected && "text-muted-foreground")}>
+          {selected?.flag && <span className={cn("fi fis", `fi-${selected.flag}`)} />}
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -133,13 +135,14 @@ export function SearchableSelect({
                     setQuery("");
                   }}
                   className={cn(
-                    "block w-full truncate rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
+                    "flex w-full items-center gap-2 truncate rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
                     opt.value === value
                       ? "bg-accent-secondary/20 text-accent-secondary"
                       : "text-foreground hover:bg-white/10"
                   )}
                 >
-                  {opt.label}
+                  {opt.flag && <span className={cn("fi fis shrink-0", `fi-${opt.flag}`)} />}
+                  <span className="truncate">{opt.label}</span>
                 </button>
               ))
             )}

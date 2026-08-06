@@ -182,6 +182,7 @@ export default function TicketsPage() {
                   options={sortedCountryCodes.map((c) => ({
                     value: c.code,
                     label: `${c.code} ${c.country}`,
+                    flag: c.iso,
                   }))}
                   placeholder="Code"
                   dropAlign="right"

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 import { RegisterSw } from "@/components/layout/register-sw";
+import "flag-icons/css/flag-icons.min.css";
 import "./globals.css";
 
 const geistSans = Geist({
