@@ -44,6 +44,7 @@ export function SearchableSelect({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear search on open
       setQuery("");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
