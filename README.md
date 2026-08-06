@@ -31,8 +31,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 
 ### Core Ticket Loop
 - **Issue Tickets** — Form with live QR preview, instant WhatsApp share with auto-snapshot at 4x resolution. Country code dropdown (203 countries with flags, India default) for phone numbers
-- **Guest List** — 7 sort options, 4 filters (type/status/gender + search), bulk delete, import/export
-- **Scanner** — Camera QR decode at 480px for maximum speed, three-way validation (granted / already scanned / invalid). Shows **who scanned** + **when** on duplicate scans
+- **Guest List** — 7 sort options, 4 filters (type/status/gender + search), bulk delete, import/export. Liquid glass cards with live summary bar
+- **Scanner** — Camera QR decode at 480px for maximum speed, three-way validation (granted / already scanned / invalid). Shows **who scanned** + **when** on duplicate scans. **Camera flip** button (front/back) with auto-mirror for selfie cam. Offline mode with IndexedDB cache + auto-sync on reconnect
 
 ### Admin & Security
 - **Dynamic Roles** — Admin creates roles and adds staff (single or **bulk upload** via CSV/JSON/XLSX). Edit staff name/email later. Google Sign-In maps emails automatically
@@ -51,9 +51,11 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Import / Export** — CSV, XLSX, PDF, TXT, DOC, JSON. Auto-dedupe by phone on import
 - **Mobile-First** — Fully responsive. 2-row nav on mobile. Fixed 380px ticket dimensions across devices
 - **Guest List Summary Bar** — Live counts: Total, Arrived, Pending, Absent with color coding
-- **Scanner Haptics** — Vibration feedback on scan results with toggle (default ON)
+- **Scanner Haptics** — Vibration feedback on scan results with toggle in the header (default ON)
 - **Remember Last Tab** — Returns to your last visited tab on page refresh
 - **Deadline Countdown** — Live timer in Settings showing time remaining until deadline
+- **Delete Confirmations** — Both guest list + activity logs have confirmation modals before destructive actions
+- **Login Logging** — All staff/admin logins recorded (incl. Google display name). Session expiry shows a toast on the login page
 - **Landing Page** — Industrial-grade marketing page with orbiting tech icons, live terminal feed, bento grid
 
 ### Customization
@@ -63,8 +65,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Country Code Selector** — 203-country dial code dropdown with rectangular SVG flags (flag-icons). India (+91) default.
 
 ### Offline & Kiosk
-- **PWA / Offline Scanner** — Installable app (manifest + service worker). Staff scanner caches a minimal ticket snapshot in IndexedDB (refreshed every 5 min, not an always-on listener) and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
-- **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`. **Works offline** the same way as the staff scanner, but caches only `{id, status, scanned}` (no guest PII) since it's a public device. Brute-force protected: 5 wrong-PIN attempts per IP per 5 minutes (Upstash-backed; a correct PIN resets the counter).
+- **PWA / Offline Scanner** — Installable app (manifest + service worker, network-first caching). Staff scanner caches a minimal ticket snapshot in IndexedDB (refreshed every 5 min, not an always-on listener) and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
+- **Self Check-in Kiosk** — A public PIN-gated URL (`/kiosk`) where guests scan their own QR code on a mounted tablet. Admin sets the PIN in Configuration (kill-switch: clear the PIN). Separate from the staff scanner; scans are logged as `SELF_CHECKIN`. **Works offline** the same way as the staff scanner, but caches only `{id, status, scanned}` (no guest PII) since it's a public device. Brute-force protected: 5 wrong-PIN attempts per IP per 5 minutes (Upstash-backed; a correct PIN resets the counter). Features: **front camera** (selfie mode for guest-facing tablet), physical **keyboard input** for the PIN (numpad + number row + Backspace + Enter), stays active permanently after unlock (no exit button), rectangular SVG country flags in dropdown.
 
 ---
 
@@ -136,8 +138,9 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
      | - settings   |   | - claims     |   | - activity |
      | - roles      |   | - sessions   |   |   logs     |
      | - locks      |   | - revocation |   | (1000 max) |
-     | - locks      |   |              |   |            |
-     | - contacts   |   |              |   |            |
+     | - contacts   |   |              |   |     +      |
+     | - audit_trail|   |              |   | overflow→  |
+     | - act_logs   |   |              |   |  Firestore |
      +--------------+   +--------------+   +------------+
 ```
 
