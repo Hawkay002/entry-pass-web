@@ -185,6 +185,7 @@ export default function TicketsPage() {
                   }))}
                   placeholder="Code"
                   dropAlign="right"
+                  panelWidth="w-56"
                   className="w-[140px] shrink-0"
                 />
                 <Input

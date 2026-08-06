@@ -19,6 +19,7 @@ export function SearchableSelect({
   onChange,
   placeholder = "Select...",
   dropAlign = "left",
+  panelWidth = "w-72",
   className,
 }: {
   value: string;
@@ -27,6 +28,8 @@ export function SearchableSelect({
   placeholder?: string;
   /** "below" = panel opens below (default), "right" = opens RIGHT centered, "left" = opens LEFT centered */
   dropAlign?: "below" | "left" | "right";
+  /** Custom width class for the side panel (e.g. "w-72", "w-80") */
+  panelWidth?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -78,9 +81,9 @@ export function SearchableSelect({
         <div className={cn(
           "absolute z-50 overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
           dropAlign === "right"
-            ? "left-full top-1/2 ml-1 -translate-y-1/2 w-72"
+            ? `left-full top-1/2 ml-1 -translate-y-1/2 ${panelWidth}`
             : dropAlign === "left"
-            ? "right-full top-1/2 mr-1 -translate-y-1/2 w-72"
+            ? `right-full top-1/2 mr-1 -translate-y-1/2 ${panelWidth}`
             : "left-0 top-full mt-1 w-full min-w-[200px]"
         )}>
           {/* Search */}

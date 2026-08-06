@@ -136,6 +136,7 @@ export function SettingsForm() {
               ]}
               placeholder="Timezone"
               dropAlign="left"
+              panelWidth="w-80"
               className="w-[180px] shrink-0"
             />
           </div>
