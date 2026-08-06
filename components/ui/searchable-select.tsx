@@ -25,7 +25,7 @@ export function SearchableSelect({
   options: SearchableOption[];
   onChange: (value: string) => void;
   placeholder?: string;
-  /** "left" = panel opens below-left (default), "right" = below-right */
+  /** "left" = panel opens below (default), "right" = panel opens to the RIGHT side */
   dropAlign?: "left" | "right";
   className?: string;
 }) {
@@ -76,8 +76,10 @@ export function SearchableSelect({
 
       {open && (
         <div className={cn(
-          "absolute top-full z-50 mt-1 w-full min-w-[200px] overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
-          dropAlign === "right" ? "right-0" : "left-0"
+          "absolute z-50 overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl",
+          dropAlign === "right"
+            ? "left-full top-0 ml-1 w-56"    // opens to the RIGHT side
+            : "left-0 top-full mt-1 w-full min-w-[200px]"  // opens below (default)
         )}>
           {/* Search */}
           <div className="relative border-b border-white/10 p-2">
