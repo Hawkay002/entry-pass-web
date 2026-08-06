@@ -161,9 +161,9 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
 
   return (
     <div className="glass-panel space-y-4 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Activity Logs</h2>
-        <div className="flex gap-2">
+      <div className="flex items-start justify-between gap-1">
+        <h2 className="shrink-0 text-lg font-semibold">Activity Logs</h2>
+        <div className="flex flex-wrap justify-end gap-1.5">
           {selectionMode ? (
             <>
               {/* Export dropdown (exports selected logs only) */}
