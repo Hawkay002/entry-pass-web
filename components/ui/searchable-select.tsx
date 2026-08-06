@@ -92,9 +92,9 @@ export function SearchableSelect({
         onClick={() => setOpen((o) => !o)}
         className="flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm whitespace-nowrap transition-colors outline-none hover:bg-input/80 dark:bg-input/60 dark:hover:bg-input/80"
       >
-        <span className={cn("flex items-center gap-1.5", !selected && "text-muted-foreground")}>
+        <span className={cn("flex min-w-0 items-center gap-1.5", !selected && "text-muted-foreground")}>
           {selected?.flag && <span className={cn("fi text-base leading-none shrink-0", `fi-${selected.flag}`)} />}
-          <span className="whitespace-nowrap">{selected ? (selected.triggerLabel ?? selected.label) : placeholder}</span>
+          <span className="truncate">{selected ? (selected.triggerLabel ?? selected.label) : placeholder}</span>
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
