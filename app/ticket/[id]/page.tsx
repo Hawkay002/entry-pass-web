@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     other: {
       "og:image:width": "800",
       "og:image:height": "420",
-      "og:image:type": "image/jpeg",
+      "og:image:type": "image/svg+xml",
     },
     twitter: {
       card: "summary_large_image",

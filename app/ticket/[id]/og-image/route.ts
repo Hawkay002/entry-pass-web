@@ -4,7 +4,6 @@
 
 import { getAdminDb } from "@/lib/firebase/admin";
 import { paths } from "@/lib/paths";
-import sharp from "sharp";
 
 export const runtime = "nodejs";
 
@@ -84,17 +83,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const colors = TYPE_COLORS[ticketType] ?? TYPE_COLORS.Classic;
   const typeLabel = TYPE_LABELS[ticketType] ?? "CLASSIC";
 
-  // Build SVG → convert to JPEG via sharp. WebP isn't supported by WhatsApp OG.
-  // Resize to 800x420 and quality 60 to keep under 30KB.
+  // Return raw SVG — Facebook/WhatsApp/LINE all support SVG OG images.
+  // No sharp dependency (crashes on Vercel serverless).
   const svg = buildSvg(name, typeLabel, eventName, colors.bg, colors.accent);
-  const jpeg = await sharp(Buffer.from(svg))
-    .resize(800, 420)
-    .jpeg({ quality: 55, progressive: true, mozjpeg: true })
-    .toBuffer();
 
-  return new Response(jpeg, {
+  return new Response(svg, {
     headers: {
-      "Content-Type": "image/jpeg",
+      "Content-Type": "image/svg+xml",
       "Cache-Control": "public, max-age=86400, s-maxage=86400",
     },
   });
