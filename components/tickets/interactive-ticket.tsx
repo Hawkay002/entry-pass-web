@@ -72,10 +72,10 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
       const gamma = e.gamma ?? 0; // left/right
       const beta = e.beta ?? 0;   // front/back
 
-      // Limit tilt range.
-      const maxTilt = 9;
-      const rotX = Math.max(-maxTilt, Math.min(maxTilt, -(beta - 45) / 5));
-      const rotY = Math.max(-maxTilt, Math.min(maxTilt, gamma / 5));
+      // Limit tilt range — amplified for stronger effect.
+      const maxTilt = 20;
+      const rotX = Math.max(-maxTilt, Math.min(maxTilt, -(beta - 45) / 2));
+      const rotY = Math.max(-maxTilt, Math.min(maxTilt, gamma / 2));
 
       el.style.transform = `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
 
@@ -146,7 +146,7 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
     const dy = py - 0.5;
     const fromCenter = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 0.5);
 
-    el.style.transform = `perspective(1200px) rotateX(${-(dy * 2) * 9}deg) rotateY(${dx * 2 * 9}deg) scale(1.02)`;
+    el.style.transform = `perspective(1200px) rotateX(${-(dy * 2) * 20}deg) rotateY(${dx * 2 * 20}deg) scale(1.02)`;
     if (glareRef.current) {
       glareRef.current.style.background = `radial-gradient(38% 55% at ${px * 100}% ${py * 100}%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%)`;
     }
