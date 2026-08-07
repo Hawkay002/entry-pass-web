@@ -1,18 +1,18 @@
-// components/tickets/interactive-ticket.tsx — the guest-facing interactive ticket.
-// Features: 3D tilt on pointer move, moving specular shine, per-type theme
-// gradients, live status badge (Firestore onSnapshot), QR code, and a
-// "Save to Google Wallet" button.
+// components/tickets/interactive-ticket.tsx — guest-facing interactive ticket.
+// Uses the WebGL AdmitOneTicket component with per-type color themes,
+// built-in tilt + glare + dithering shader. Adds a live status badge,
+// QR code, and Google Wallet button around it.
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useSpring, useTransform, useMotionTemplate } from "framer-motion";
-import QRCode from "qrcode";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { paths } from "@/lib/paths";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, remixTicketStyle } from "@/components/ui/admit-one-ticket";
+import QRCode from "qrcode";
 
 interface TicketData {
   id: string;
@@ -28,10 +28,17 @@ interface SettingsData {
   place: string;
 }
 
-const TYPE_THEME: Record<string, { bg: string; text: string }> = {
-  Classic: { bg: "bg-black", text: "text-white" },
-  Diamond: { bg: "bg-[linear-gradient(125deg,#e2e8f0_0%,#ffffff_40%,#94a3b8_100%)]", text: "text-[#0f2433]" },
-  Gold: { bg: "bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#b38728,#fbf5b7,#aa771c)]", text: "text-[#3e2704]" },
+// Per-type color themes for the shader ticket.
+const TYPE_STYLES: Record<string, { texture: typeof TICKET_TEXTURE; gradient: typeof TICKET_GRADIENT }> = {
+  Classic: {
+    texture: { ...TICKET_TEXTURE, colorBack: "#1a1a2e", colorFront: "#16213e", colorHighlight: "#0f3460", shape: "simplex", type: "4x4", speed: 0.3 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#1a1a2e", colorMid: "#16213e", colorDark: "#0f0f1a" },
+  },
+  Diamond: {
+    texture: { ...TICKET_TEXTURE, colorBack: "#475569", colorFront: "#e2e8f0", colorHighlight: "#cbd5e1", shape: "ripple", type: "8x8", speed: 0.35 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#e2e8f0", colorMid: "#94a3b8", colorDark: "#475569" },
+  },
+  Gold: TICKET_TEXTURE === TICKET_TEXTURE ? { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT } : { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT },
 };
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
@@ -48,7 +55,7 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
   useEffect(() => {
     if (canvasRef.current) {
       QRCode.toCanvas(canvasRef.current, ticket.id, {
-        width: 120,
+        width: 100,
         color: { dark: "#000000", light: "#ffffff" },
         errorCorrectionLevel: "H",
       }).catch(() => {});
@@ -59,125 +66,51 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
   useEffect(() => {
     const unsub = onSnapshot(
       doc(db, paths.ticketsCollection, ticket.id),
-      (snap) => {
-        if (snap.exists()) {
-          const s = snap.data().status;
-          if (typeof s === "string") setStatus(s);
-        }
-      },
-      () => {} // ignore errors — status is best-effort
+      (snap) => { if (snap.exists()) { const s = snap.data().status; if (typeof s === "string") setStatus(s); } },
+      () => {}
     );
     return unsub;
   }, [ticket.id]);
 
-  const theme = TYPE_THEME[ticket.ticketType] ?? TYPE_THEME.Classic;
   const typeLabel = TICKET_TYPE_LABELS[ticket.ticketType as keyof typeof TICKET_TYPE_LABELS] ?? ticket.ticketType;
   const statusInfo = STATUS_STYLE[status] ?? STATUS_STYLE["coming-soon"];
-
-  // Tilt + shine motion values.
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-  const rotateX = useSpring(useTransform(mouseY, [0, 1], [8, -8]), { stiffness: 150, damping: 20 });
-  const rotateY = useSpring(useTransform(mouseX, [0, 1], [-8, 8]), { stiffness: 150, damping: 20 });
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Shine overlay position.
-  const shineX = useTransform(mouseX, [0, 1], ["0%", "100%"]);
-  const shineY = useTransform(mouseY, [0, 1], ["0%", "100%"]);
-  const shineBg = useMotionTemplate`radial-gradient(circle at ${shineX} ${shineY}, rgba(255,255,255,0.25) 0%, transparent 50%)`;
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.set((e.clientX - rect.left) / rect.width);
-    mouseY.set((e.clientY - rect.top) / rect.height);
-  }
+  const ticketStyle = TYPE_STYLES[ticket.ticketType] ?? TYPE_STYLES.Gold;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 py-8">
-      {/* Tilt container */}
-      <motion.div
-        onPointerMove={handlePointerMove}
-        onPointerEnter={() => setIsHovering(true)}
-        onPointerLeave={() => {
-          setIsHovering(false);
-          mouseX.set(0.5);
-          mouseY.set(0.5);
-        }}
-        style={{ rotateX, rotateY, transformPerspective: 1000 }}
-        className="relative w-full max-w-[380px]"
-      >
-        {/* Ticket card */}
-        <div className={cn("relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl", theme.bg)}>
-          {/* Shine overlay */}
-          <motion.div
-            className="pointer-events-none absolute inset-0 z-10 rounded-2xl"
-            style={{ background: shineBg, opacity: isHovering ? 1 : 0 }}
-          />
+      {/* Status badge */}
+      <div className="mb-6">
+        <span className={cn("rounded-full border px-4 py-1.5 text-sm font-semibold", statusInfo.className)}>
+          {statusInfo.label}
+        </span>
+      </div>
 
-          {/* Content */}
-          <div className={cn("relative z-20 p-6", theme.text)}>
-            {/* Status badge */}
-            <div className="mb-4 flex justify-end">
-              <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", statusInfo.className)}>
-                {statusInfo.label}
-              </span>
-            </div>
+      {/* Shader ticket */}
+      <div className="overflow-hidden rounded-xl">
+        <AdmitOneTicket
+          name={ticket.name}
+          presenter="ENTRY PASS"
+          event={typeLabel.toUpperCase()}
+          venue={settings.place || "Venue"}
+          dates={`${ticket.age} / ${ticket.gender}`}
+          stubText={typeLabel}
+          watermark={ticket.id.slice(-4).toUpperCase()}
+          width={Math.min(741, typeof window !== "undefined" ? window.innerWidth - 32 : 741)}
+          texture={ticketStyle.texture}
+          gradient={ticketStyle.gradient}
+        />
+      </div>
 
-            {/* Header */}
-            <div className="mb-1 text-center">
-              <h2 className="text-lg font-bold tracking-wide">
-                ENTRY PASS — {typeLabel.toUpperCase()}
-              </h2>
-            </div>
-            {settings.name && (
-              <p className="text-center text-sm opacity-70">{settings.name}</p>
-            )}
-            {settings.place && (
-              <p className="text-center text-xs opacity-60">{settings.place}</p>
-            )}
+      {/* QR code */}
+      <div className="mt-6 rounded-xl bg-white p-2">
+        <canvas ref={canvasRef} />
+      </div>
 
-            {/* Divider */}
-            <div className="my-4 border-t border-current opacity-20" />
-
-            {/* QR */}
-            <div className="mb-4 flex justify-center">
-              <div className="rounded-xl bg-white p-2">
-                <canvas ref={canvasRef} />
-              </div>
-            </div>
-
-            {/* Details */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm opacity-60">Guest</span>
-                <span className="text-sm font-bold">{ticket.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm opacity-60">Profile</span>
-                <span className="text-sm font-semibold">{ticket.age} / {ticket.gender}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm opacity-60">Type</span>
-                <span className="text-sm font-semibold">{typeLabel}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm opacity-60">ID</span>
-                <span className="font-mono text-xs opacity-50">{ticket.id}</span>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="mt-4 border-t border-current pt-3 text-center opacity-50">
-              <p className="text-[0.65rem] uppercase tracking-wider">
-                Scan this code at the entrance for admission
-              </p>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+      {/* Ticket ID */}
+      <p className="mt-3 font-mono text-xs text-white/40">{ticket.id}</p>
 
       {/* Google Wallet button */}
-      <div className="mt-6 w-full max-w-[380px]">
+      <div className="mt-4 w-full max-w-[380px]">
         <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} />
       </div>
 
@@ -189,19 +122,8 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
 }
 
 /** Google Wallet save button — shows "Coming Soon" if pass class not configured. */
-function WalletButton({
-  ticketId,
-  name,
-  typeLabel,
-  eventName,
-}: {
-  ticketId: string;
-  name: string;
-  typeLabel: string;
-  eventName: string;
-}) {
+function WalletButton({ ticketId, name, typeLabel, eventName }: { ticketId: string; name: string; typeLabel: string; eventName: string; }) {
   const [loading, setLoading] = useState(false);
-  const [walletUrl, setWalletUrl] = useState<string | null>(null);
 
   async function handleSave() {
     setLoading(true);
@@ -212,26 +134,10 @@ function WalletButton({
         body: JSON.stringify({ ticketId, name, typeLabel, eventName }),
       });
       const data = await res.json();
-      if (data.ok && data.url) {
-        window.location.href = data.url;
-      }
-    } catch {
-      // ignore — button degrades gracefully
-    }
+      if (data.ok && data.url) window.location.href = data.url;
+    } catch {}
     setLoading(false);
   }
-
-  // Check if Wallet is configured on mount.
-  useEffect(() => {
-    fetch("/api/wallet-pass", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ checkOnly: true }),
-    })
-      .then((r) => r.json())
-      .then((data) => { if (!data.ok) setWalletUrl(null); })
-      .catch(() => {});
-  }, []);
 
   return (
     <button

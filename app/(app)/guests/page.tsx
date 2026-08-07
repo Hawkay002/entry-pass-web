@@ -5,7 +5,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { LockedTab } from "@/components/layout/locked-tab";
 import { useLockedTabs } from "@/components/layout/locked-tabs-context";
-import { Loader2, Search, Trash2, Filter, Eye, Users } from "lucide-react";
+import { Loader2, Search, Trash2, Filter, Eye, Users, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,6 +306,7 @@ export default function GuestsPage() {
               <TableHead>Details</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Ticket ID</TableHead>
+              <TableHead className="text-center">Link</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12 text-center">View</TableHead>
             </TableRow>
@@ -313,7 +314,7 @@ export default function GuestsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">Loading guests...</span>
@@ -322,7 +323,7 @@ export default function GuestsPage() {
               </TableRow>
             ) : filtered.length === 0 && tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="h-10 w-10 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">No guests yet.</p>
@@ -332,7 +333,7 @@ export default function GuestsPage() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Search className="h-8 w-8 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">No guests match your filters.</p>
@@ -370,6 +371,17 @@ export default function GuestsPage() {
                   <TableCell className="text-muted-foreground">{t.phone}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {t.id.slice(0, 8)}…
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <a
+                      href={`/ticket/${t.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center text-muted-foreground transition-colors hover:text-accent-secondary"
+                      title="Open guest ticket page"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
                   </TableCell>
                   <TableCell>
                     <span
