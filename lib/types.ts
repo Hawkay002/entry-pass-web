@@ -1,7 +1,7 @@
 // lib/types.ts — shared data model mirroring the existing Firestore schema.
 // All collections are documented in docs/superpowers/specs/2026-07-29-nextjs-rewrite-design.md
 
-export type TicketType = "Classic" | "Diamond" | "Gold";
+export type TicketType = "Classic" | "Diamond" | "Gold" | "SVIP";
 export type TicketStatus = "coming-soon" | "arrived" | "absent";
 export type Gender = "Male" | "Female" | "Other";
 
@@ -105,6 +105,7 @@ export const LOCK_REASON_OPTIONS: LockReasonOption[] = [
 export const TICKET_TYPE_LABELS: Record<TicketType, string> = {
   Classic: "Classic",
   Diamond: "VIP",
+  SVIP: "SVIP",
   Gold: "VVIP",
 };
 

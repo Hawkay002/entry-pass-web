@@ -5,7 +5,9 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { LockedTab } from "@/components/layout/locked-tab";
 import { useLockedTabs } from "@/components/layout/locked-tabs-context";
-import { Loader2, Search, Trash2, Filter, Eye, Users, ExternalLink } from "lucide-react";
+import { Loader2, Search, Trash2, Filter, Eye, Users } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,9 +308,9 @@ export default function GuestsPage() {
               <TableHead>Details</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Ticket ID</TableHead>
-              <TableHead className="text-center">Link</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12 text-center">View</TableHead>
+              <TableHead className="w-12 text-center">Share</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -372,17 +374,6 @@ export default function GuestsPage() {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {t.id.slice(0, 8)}…
                   </TableCell>
-                  <TableCell className="text-center">
-                    <a
-                      href={`/ticket/${t.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center text-muted-foreground transition-colors hover:text-accent-secondary"
-                      title="Open guest ticket page"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </TableCell>
                   <TableCell>
                     <span
                       className={cn(
@@ -394,15 +385,31 @@ export default function GuestsPage() {
                     </span>
                   </TableCell>
                   <TableCell>
+                    <a
+                      href={`/ticket/${t.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                      >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    </a>
+                  </TableCell>
+                  <TableCell>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setViewTicket(t);
-                        setViewOpen(true);
+                        const digits = t.phone.replace(/\D/g, "");
+                        const ticketUrl = `${window.location.origin}/ticket/${t.id}`;
+                        const message = `Hello ${t.name}, here is your Entry Pass 🎫\n*Keep this QR code ready at the entrance.*\n\nView your interactive ticket:\n${ticketUrl}\n\nEnter the phone number used during registration to unlock your ticket.`;
+                        window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
                       }}
                     >
-                      <Eye className="h-4 w-4" />
+                      <HugeiconsIcon icon={WhatsappIcon} size={16} primaryColor="#25D366" />
                     </Button>
                   </TableCell>
                 </TableRow>

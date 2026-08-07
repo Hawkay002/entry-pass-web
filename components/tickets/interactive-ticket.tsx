@@ -1,16 +1,17 @@
 // components/tickets/interactive-ticket.tsx — guest-facing interactive ticket.
-// Uses the WebGL AdmitOneTicket component with per-type color themes,
-// built-in tilt + glare + dithering shader. QR + ticket ID overlaid on ticket.
+// Wraps AdmitOneTicket (tilt disabled) in a custom tilt container so QR +
+// ticket ID overlays move together with the ticket.
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { paths } from "@/lib/paths";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
-import { cn } from "@/lib/utils";
-import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT } from "@/components/ui/admit-one-ticket";
+import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, TICKET_LAYOUT, TICKET_GEOMETRY, ticketClipPath } from "@/components/ui/admit-one-ticket";
+import { HoloOverlay } from "@/components/tickets/holo-overlay";
+import { RadiantOverlay } from "@/components/tickets/radiant-overlay";
 import QRCode from "qrcode";
 
 interface TicketData {
@@ -36,22 +37,25 @@ const TYPE_STYLES: Record<string, { texture: typeof TICKET_TEXTURE; gradient: ty
     texture: { ...TICKET_TEXTURE, colorBack: "#475569", colorFront: "#e2e8f0", colorHighlight: "#cbd5e1", shape: "ripple", type: "8x8", speed: 0.35 },
     gradient: { ...TICKET_GRADIENT, colorLight: "#e2e8f0", colorMid: "#94a3b8", colorDark: "#475569" },
   },
+  SVIP: {
+    // VIP base (ripple shader) but golden colors
+    texture: { ...TICKET_TEXTURE, colorBack: "#bf953f", colorFront: "#fcf6ba", colorHighlight: "#b38728", shape: "ripple", type: "8x8", speed: 0.35 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#fcf6ba", colorMid: "#bf953f", colorDark: "#aa771c" },
+  },
   Gold: { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT },
-};
-
-const STATUS_STYLE: Record<string, { label: string; className: string }> = {
-  "coming-soon": { label: "Coming Soon", className: "bg-amber-500/20 text-amber-400 border-amber-500/40" },
-  arrived: { label: "Arrived ✓", className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" },
-  absent: { label: "Absent", className: "bg-red-500/20 text-red-400 border-red-500/40" },
 };
 
 export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; settings: SettingsData }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [status, setStatus] = useState(ticket.status);
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const glareRef = useRef<HTMLDivElement>(null);
+  const [hovering, setHovering] = useState(false);
   const [ticketWidth, setTicketWidth] = useState(741);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [holoVars, setHoloVars] = useState({
+    px: 50, py: 50, bx: 50, by: 50, fromCenter: 0, opacity: 0,
+  });
 
-  // Responsive width.
   useEffect(() => {
     const update = () => setTicketWidth(Math.min(741, window.innerWidth - 32));
     update();
@@ -59,102 +63,144 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Generate QR as data URL for overlaying on the ticket.
   useEffect(() => {
-    QRCode.toDataURL(ticket.id, {
-      width: 200,
-      margin: 1,
-      color: { dark: "#000000", light: "#ffffff" },
-      errorCorrectionLevel: "H",
-    }).then(setQrDataUrl).catch(() => {});
+    QRCode.toDataURL(ticket.id, { width: 200, margin: 1, color: { dark: "#000000", light: "#ffffff" }, errorCorrectionLevel: "H" }).then(setQrDataUrl).catch(() => {});
   }, [ticket.id]);
 
-  // Also render to hidden canvas (for Wallet pass).
   useEffect(() => {
-    if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, ticket.id, {
-        width: 100,
-        errorCorrectionLevel: "H",
-      }).catch(() => {});
+    if (canvasRef.current) QRCode.toCanvas(canvasRef.current, ticket.id, { width: 100, errorCorrectionLevel: "H" }).catch(() => {});
+  }, [ticket.id]);
+
+  const onMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const el = tiltRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const dx = px - 0.5;
+    const dy = py - 0.5;
+    const fromCenter = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 0.5);
+
+    el.style.transform = `perspective(1200px) rotateX(${-(dy * 2) * 9}deg) rotateY(${dx * 2 * 9}deg) scale(1.02)`;
+    if (glareRef.current) {
+      glareRef.current.style.background = `radial-gradient(38% 55% at ${px * 100}% ${py * 100}%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%)`;
     }
-  }, [ticket.id]);
 
-  // Live status via Firestore onSnapshot.
-  useEffect(() => {
-    const unsub = onSnapshot(
-      doc(db, paths.ticketsCollection, ticket.id),
-      (snap) => { if (snap.exists()) { const s = snap.data().status; if (typeof s === "string") setStatus(s); } },
-      () => {}
-    );
-    return unsub;
-  }, [ticket.id]);
+    // Update holo vars for the overlay.
+    setHoloVars({
+      px: Math.round(px * 100),
+      py: Math.round(py * 100),
+      bx: Math.round(37 + px * 26),
+      by: Math.round(33 + py * 34),
+      fromCenter,
+      opacity: 1,
+    });
+  }, []);
+
+  const onLeave = useCallback(() => {
+    setHovering(false);
+    if (tiltRef.current) tiltRef.current.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)";
+    if (glareRef.current) glareRef.current.style.background = "transparent";
+    setHoloVars((v) => ({ ...v, opacity: 0, bx: 50, by: 50 }));
+  }, []);
 
   const typeLabel = TICKET_TYPE_LABELS[ticket.ticketType as keyof typeof TICKET_TYPE_LABELS] ?? ticket.ticketType;
-  const statusInfo = STATUS_STYLE[status] ?? STATUS_STYLE["coming-soon"];
   const ticketStyle = TYPE_STYLES[ticket.ticketType] ?? TYPE_STYLES.Gold;
+  const hasSettings = !!(settings.name || settings.place);
+  const isClassic = ticket.ticketType === "Classic";
+  const inkColor = isClassic ? "#ffffff" : "#5a3520";
 
-  // The AdmitOneTicket footer renders: `{venue} · {dates}`.
-  // We don't want venue in the footer — just pass dates there.
-  // Event name + venue go into the label area (presenter + event).
-  // If no settings, show generic placeholders.
-  const hasSettings = settings.name || settings.place;
+  // Custom layout: move content up, bigger footer text.
+  const customLayout = {
+    ...TICKET_LAYOUT,
+    nameTop: 150 / 741,      // moved up from 185
+    footerTop: 290 / 741,    // moved up from 348
+    footerSize: 22 / 741,    // bigger footer text
+    inkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.inkColor,
+    watermarkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.watermarkColor,
+    // Smaller watermark for Classic tickets
+    ...(isClassic ? { watermarkSize: 110 / 741, watermarkOpacity: 0.15 } : {}),
+    // Engraved text effect for VVIP tickets
+    ...(ticket.ticketType === "Gold" ? { engraved: true } : {}),
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 py-8">
-      {/* Status badge */}
-      <div className="mb-6">
-        <span className={cn("rounded-full border px-4 py-1.5 text-sm font-semibold", statusInfo.className)}>
-          {statusInfo.label}
-        </span>
-      </div>
+      {/* Tilt container — transparent bg so notch cutouts don't show white */}
+      <div
+        ref={tiltRef}
+        onPointerEnter={() => setHovering(true)}
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+        className="relative w-fit will-change-transform"
+        style={{
+          transition: hovering ? "none" : "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+          transform: "perspective(1200px) rotateX(0deg) rotateY(0deg) scale(1)",
+          transformStyle: "preserve-3d",
+          background: "transparent",
+          backfaceVisibility: "hidden",
+        }}
+      >
+        {/* No holographic overlays — clean shader tickets only */}
 
-      {/* Ticket + QR overlay — no overflow-hidden so tilt isn't clipped */}
-      <div className="relative" style={{ perspective: "1200px" }}>
         <AdmitOneTicket
+          tilt={false}
           name={ticket.name}
           presenter={`ENTRY PASS — ${typeLabel.toUpperCase()}`}
-          event={hasSettings ? (settings.name || "") : ""}
+          event={hasSettings ? `${settings.name || ""}${settings.place ? `  •  ${settings.place}` : ""}` : ""}
           venue={""}
           dates={`${ticket.age} / ${ticket.gender}`}
-          stubText={typeLabel}
-          watermark={ticket.id.slice(-4).toUpperCase()}
+          stubText="ADMIT ONE"
+          watermark={typeLabel.toUpperCase()}
           width={ticketWidth}
+          layout={customLayout}
           texture={ticketStyle.texture}
           gradient={ticketStyle.gradient}
         />
 
-        {/* QR code overlay — positioned bottom-right of the main ticket body */}
+        {/* QR code overlay — bigger, moves with tilt */}
         {qrDataUrl && (
           <div
             className="pointer-events-none absolute rounded-lg bg-white p-1.5"
             style={{
-              bottom: `${(50 / 741) * ticketWidth}px`,
-              left: `${(440 / 741) * ticketWidth}px`,
-              width: `${(85 / 741) * ticketWidth}px`,
+              bottom: `${(30 / 741) * ticketWidth}px`,
+              left: `${(425 / 741) * ticketWidth}px`,
+              width: `${(110 / 741) * ticketWidth}px`,
+              zIndex: 20,
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt="QR Code" className="w-full" />
+            <img src={qrDataUrl} alt="QR" className="w-full" />
           </div>
         )}
 
-        {/* Ticket ID overlay — small text below the name */}
+        {/* Ticket ID overlay — right beneath the age/gender footer */}
         <div
-          className="pointer-events-none absolute font-mono text-[0.5em] opacity-50"
+          className="pointer-events-none absolute font-medium uppercase whitespace-nowrap"
           style={{
-            bottom: `${(20 / 741) * ticketWidth}px`,
+            top: `${(325 / 741) * ticketWidth}px`,
             left: `${(57 / 741) * ticketWidth}px`,
-            color: ticketStyle.gradient.colorDark,
+            fontSize: `${customLayout.footerSize * ticketWidth}px`,
+            letterSpacing: `${customLayout.footerTracking}em`,
+            color: inkColor,
+            opacity: 0.85,
+            zIndex: 20,
           }}
         >
-          {ticket.id}
+          ID: {ticket.id}
         </div>
-      </div>
 
-      {/* Venue below ticket if set */}
-      {hasSettings && settings.place && (
-        <p className="mt-2 text-sm text-white/40">{settings.place}</p>
-      )}
+        {/* Glare overlay — clipped to ticket shape so it doesn't show on cutouts */}
+        <div
+          ref={glareRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            transition: hovering ? "none" : "background 420ms ease-out",
+            clipPath: `path('${ticketClipPath(ticketWidth, ticketWidth / TICKET_GEOMETRY.aspect)}')`,
+          }}
+        />
+      </div>
 
       {/* Hidden QR canvas for Wallet */}
       <canvas ref={canvasRef} className="hidden" />
@@ -171,18 +217,13 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
   );
 }
 
-/** Google Wallet save button. */
 function WalletButton({ ticketId, name, typeLabel, eventName }: { ticketId: string; name: string; typeLabel: string; eventName: string; }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSave() {
     setLoading(true);
     try {
-      const res = await fetch("/api/wallet-pass", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticketId, name, typeLabel, eventName }),
-      });
+      const res = await fetch("/api/wallet-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticketId, name, typeLabel, eventName }) });
       const data = await res.json();
       if (data.ok && data.url) window.location.href = data.url;
     } catch {}
@@ -199,9 +240,7 @@ function WalletButton({ ticketId, name, typeLabel, eventName }: { ticketId: stri
         <span className="animate-pulse">Preparing...</span>
       ) : (
         <>
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9.5 3c1.93 0 3.5 1.57 3.5 3.5S13.43 14 11.5 14 8 12.43 8 10.5 9.57 7 11.5 7zM5 18c.61-1.42 2.1-2.27 3.5-2.69.7-.21 1.45-.31 2-.31s1.3.1 2 .31c1.4.42 2.89 1.27 3.5 2.69H5z"/>
-          </svg>
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9.5 3c1.93 0 3.5 1.57 3.5 3.5S13.43 14 11.5 14 8 12.43 8 10.5 9.57 7 11.5 7zM5 18c.61-1.42 2.1-2.27 3.5-2.69.7-.21 1.45-.31 2-.31s1.3.1 2 .31c1.4.42 2.89 1.27 3.5 2.69H5z"/></svg>
           Save to Google Wallet
         </>
       )}

@@ -9,6 +9,7 @@ import type { LogEntry } from "@/lib/redis-log";
 /** Internal ticketType -> display label. */
 export function displayTicketType(type: TicketType): string {
   if (type === "Gold") return "VVIP";
+  if (type === "SVIP") return "SVIP";
   if (type === "Diamond") return "VIP";
   return "Classic";
 }
@@ -17,6 +18,7 @@ export function displayTicketType(type: TicketType): string {
 export function parseTicketType(raw: string): TicketType {
   const v = raw.toLowerCase().trim();
   if (v === "vip") return "Diamond";
+  if (v === "svip") return "SVIP";
   if (v === "vvip") return "Gold";
   if (v === "gold") return "Gold";
   if (v === "diamond") return "Diamond";

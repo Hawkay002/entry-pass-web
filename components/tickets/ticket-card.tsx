@@ -1,21 +1,30 @@
 // components/tickets/ticket-card.tsx — the printable ticket card with QR.
-// Mirrors the original's per-type theming (Classic/Diamond/Gold) and the
-// QR encoding ticket.id (script.js:1624-1633).
+// Uses AdmitOneTicket (WebGL shader) with tilt disabled.
+// Passes the measured container width directly to AdmitOneTicket — no
+// CSS transforms, no overflow hacks.
 
 "use client";
 
-import { forwardRef, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { cn } from "@/lib/utils";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
 import type { Ticket } from "@/lib/types";
+import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, TICKET_LAYOUT } from "@/components/ui/admit-one-ticket";
 
-const TYPE_THEME: Record<string, string> = {
-  Classic: "bg-black",
-  Diamond:
-    "text-[#0f2433] bg-[linear-gradient(125deg,#e2e8f0_0%,#ffffff_40%,#94a3b8_100%)]",
-  Gold:
-    "text-[#3e2704] bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#b38728,#fbf5b7,#aa771c)]",
+const TYPE_STYLES: Record<string, { texture: typeof TICKET_TEXTURE; gradient: typeof TICKET_GRADIENT }> = {
+  Classic: {
+    texture: { ...TICKET_TEXTURE, colorBack: "#1a1a2e", colorFront: "#16213e", colorHighlight: "#0f3460", shape: "simplex", type: "4x4", speed: 0.3 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#1a1a2e", colorMid: "#16213e", colorDark: "#0f0f1a" },
+  },
+  Diamond: {
+    texture: { ...TICKET_TEXTURE, colorBack: "#475569", colorFront: "#e2e8f0", colorHighlight: "#cbd5e1", shape: "ripple", type: "8x8", speed: 0.35 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#e2e8f0", colorMid: "#94a3b8", colorDark: "#475569" },
+  },
+  SVIP: {
+    texture: { ...TICKET_TEXTURE, colorBack: "#bf953f", colorFront: "#fcf6ba", colorHighlight: "#b38728", shape: "ripple", type: "8x8", speed: 0.35 },
+    gradient: { ...TICKET_GRADIENT, colorLight: "#fcf6ba", colorMid: "#bf953f", colorDark: "#aa771c" },
+  },
+  Gold: { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT },
 };
 
 export const TicketCard = forwardRef<HTMLDivElement, {
@@ -27,58 +36,110 @@ export const TicketCard = forwardRef<HTMLDivElement, {
   eventName,
   venue,
 }, ref) {
-  const qrRef = useRef<HTMLCanvasElement>(null);
-  const theme = TYPE_THEME[ticket.ticketType] ?? TYPE_THEME.Classic;
-  const typeLabel = TICKET_TYPE_LABELS[ticket.ticketType];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [ticketWidth, setTicketWidth] = useState(380);
+
+  // Measure the available width and pass it directly to AdmitOneTicket.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    function recalc() {
+      const parent = containerRef.current?.parentElement;
+      if (!parent) return;
+      const w = parent.clientWidth;
+      if (w > 0) setTicketWidth(Math.min(w, 741));
+    }
+
+    recalc();
+    const timers = [16, 50, 200, 500].map((ms) => setTimeout(recalc, ms));
+    const ro = new ResizeObserver(recalc);
+    ro.observe(el.parentElement ?? el);
+
+    return () => {
+      ro.disconnect();
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
+  const typeLabel = TICKET_TYPE_LABELS[ticket.ticketType] ?? ticket.ticketType;
+  const style = TYPE_STYLES[ticket.ticketType] ?? TYPE_STYLES.Gold;
+  const isClassic = ticket.ticketType === "Classic";
+  const isVVIP = ticket.ticketType === "Gold";
 
   useEffect(() => {
-    const canvas = qrRef.current;
-    if (!canvas) return;
-    QRCode.toCanvas(canvas, ticket.id, {
-      width: 100,
+    QRCode.toDataURL(ticket.id, {
+      width: 150,
+      margin: 1,
       color: { dark: "#000000", light: "#ffffff" },
       errorCorrectionLevel: "H",
-    }).catch((err) => console.error("[TicketCard] QR error:", err));
+    }).then(setQrDataUrl).catch(() => {});
   }, [ticket.id]);
 
+  const layout = {
+    ...TICKET_LAYOUT,
+    nameTop: 150 / 741,
+    footerTop: 290 / 741,
+    footerSize: 22 / 741,
+    inkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.inkColor,
+    watermarkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.watermarkColor,
+    ...(isClassic ? { watermarkSize: 110 / 741, watermarkOpacity: 0.15 } : {}),
+    ...(isVVIP ? { engraved: true } : {}),
+  };
+
+  // Position overlays as ratios of the actual ticket width (not 741).
+  const w = ticketWidth;
+
   return (
-    <div ref={ref} className={cn("w-[380px] overflow-hidden rounded-2xl border border-white/10", theme)}>
-      <div className="px-5 pt-4">
-        <h3 className="text-center text-lg font-semibold tracking-tight">
-          ENTRY PASS — {typeLabel.toUpperCase()}
-        </h3>
-        {eventName ? (
-          <p className="text-center text-sm opacity-70">
-            {eventName}
-            {venue ? <span className="block">{venue}</span> : null}
-          </p>
-        ) : null}
-      </div>
-      <div className="flex items-stretch gap-4 px-5 py-4">
-        <div className="flex-1 space-y-2 text-sm">
-          <Row label="Guest Name" value={ticket.name} />
-          <Row label="Profile" value={`${ticket.age} / ${ticket.gender}`} />
-          <Row label="Contact" value={ticket.phone} />
-          <div className="inline-block rounded-full bg-black/20 px-2 py-0.5 font-mono text-xs">
-            ID: {ticket.id}
+    <div ref={ref} style={{ width: w, height: w / (741 / 425), position: "relative" }}>
+      <div ref={containerRef} style={{ width: w, position: "relative" }}>
+        <AdmitOneTicket
+          tilt={false}
+          name={ticket.name}
+          presenter={`ENTRY PASS — ${typeLabel.toUpperCase()}`}
+          event={eventName ? `${eventName}${venue ? `  •  ${venue}` : ""}` : ""}
+          venue={""}
+          dates={`${ticket.age} / ${ticket.gender}`}
+          stubText="ADMIT ONE"
+          watermark={typeLabel.toUpperCase()}
+          width={w}
+          layout={layout}
+          texture={style.texture}
+          gradient={style.gradient}
+        />
+
+        {/* QR code overlay */}
+        {qrDataUrl && (
+          <div
+            className="pointer-events-none absolute rounded-lg bg-white p-1"
+            style={{
+              bottom: `${(30 / 741) * w}px`,
+              left: `${(425 / 741) * w}px`,
+              width: `${(90 / 741) * w}px`,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt="QR" style={{ width: "100%", height: "auto", display: "block" }} />
           </div>
+        )}
+
+        {/* Ticket ID overlay */}
+        <div
+          className="pointer-events-none absolute font-medium uppercase whitespace-nowrap"
+          style={{
+            top: `${(325 / 741) * w}px`,
+            left: `${(57 / 741) * w}px`,
+            fontSize: `${(22 / 741) * w}px`,
+            letterSpacing: `${layout.footerTracking}em`,
+            color: layout.inkColor,
+            opacity: 0.85,
+            ...(isVVIP ? { textShadow: "0 1px 0 rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.15)" } : {}),
+          }}
+        >
+          ID: {ticket.id}
         </div>
-        <div className="flex items-center">
-          <canvas ref={qrRef} className="rounded bg-white p-1" />
-        </div>
-      </div>
-      <div className="bg-black/10 px-5 py-2 text-center text-[0.65rem] tracking-widest opacity-70">
-        SCAN THIS CODE AT THE ENTRANCE FOR ADMISSION
       </div>
     </div>
   );
 });
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="opacity-60">{label}</span>
-      <span className="text-right font-medium">{value || "—"}</span>
-    </div>
-  );
-}

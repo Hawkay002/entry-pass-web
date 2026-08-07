@@ -35,9 +35,12 @@ export function TicketViewModal({
 
   async function handleShare() {
     if (!ticket || !cardRef.current) return;
+    // Snapshot the inner full-resolution element (not the scaled wrapper).
+    const snapshotEl = cardRef.current.querySelector(":scope > div") as HTMLElement | null;
+    const target = snapshotEl ?? cardRef.current;
     setSharing(true);
     try {
-      await shareTicketViaWhatsApp(cardRef.current, ticket.name, ticket.phone, ticket.id);
+      await shareTicketViaWhatsApp(target, ticket.name, ticket.phone, ticket.id);
     } catch {
       setSharing(false);
     }
@@ -45,15 +48,17 @@ export function TicketViewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[calc(100%-1rem)] p-1 sm:max-w-[460px] sm:p-4">
-        <DialogHeader className="px-1 py-1 sm:px-0 sm:py-0">
+      <DialogContent className="max-w-[calc(100%-1rem)] p-2 sm:max-w-[789px] sm:p-6">
+        <DialogHeader>
           <DialogTitle>Ticket Preview</DialogTitle>
         </DialogHeader>
 
         {ticket && (
           <div className="space-y-1 px-1 py-1 sm:space-y-4 sm:px-0 sm:py-4">
-            <div className="flex justify-center">
-              <TicketCard ref={cardRef} ticket={ticket} eventName={eventName} venue={venue} />
+            <div className="flex w-full justify-center">
+              <div style={{ width: "min(741px, 100%)" }}>
+                <TicketCard ref={cardRef} ticket={ticket} eventName={eventName} venue={venue} />
+              </div>
             </div>
             <Button
               onClick={handleShare}

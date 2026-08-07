@@ -2,12 +2,12 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, UserRound, Smartphone, Tickets } from "lucide-react";
+import { Loader2, UserRound, Smartphone, Tickets, CheckCircle2, ExternalLink } from "lucide-react";
 import { FaVenusMars } from "react-icons/fa6";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AddInvoiceIcon, WhatsappIcon } from "@hugeicons/core-free-icons";
@@ -24,10 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TicketCard } from "@/components/tickets/ticket-card";
 import { useSettings } from "@/hooks/use-settings";
 import { createTicket } from "@/app/actions/tickets";
-import { shareTicketViaWhatsApp } from "@/lib/whatsapp";
 import { sortedCountryCodes, DEFAULT_DIAL_CODE } from "@/lib/country-codes";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { Gender, Ticket, TicketType } from "@/lib/types";
@@ -58,7 +56,7 @@ const schema = z.object({
     .string()
     .min(10, "Enter 10 digits")
     .regex(/^\d{10}$/, "Must be exactly 10 digits"),
-  ticketType: z.enum(["Classic", "Diamond", "Gold"]),
+  ticketType: z.enum(["Classic", "Diamond", "SVIP", "Gold"]),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -78,20 +76,17 @@ export default function TicketsPage() {
   const [ticketTypeVal, setTicketTypeVal] = useState<TicketType>("Classic");
   const [genderVal, setGenderVal] = useState<Gender>("Male");
   const [dialCode, setDialCode] = useState(DEFAULT_DIAL_CODE);
-  const ticketRef = useRef<HTMLDivElement>(null);
 
   async function handleShare() {
-    if (!ticketRef.current || preview.id === "—") return;
+    if (preview.id === "—") return;
     setIsSharing(true);
     try {
-      await shareTicketViaWhatsApp(
-        ticketRef.current,
-        preview.name,
-        preview.phone,
-        preview.id
-      );
+      const digits = preview.phone.replace(/\D/g, "");
+      const ticketUrl = `${window.location.origin}/ticket/${preview.id}`;
+      const message = `Hello ${preview.name}, here is your Entry Pass 🎫\n*Keep this QR code ready at the entrance.*\n\nView your interactive ticket:\n${ticketUrl}\n\nEnter the phone number used during registration to unlock your ticket.`;
+      window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
     } catch {
-      toast.error("Could not generate ticket image");
+      toast.error("Could not open WhatsApp");
     } finally {
       setIsSharing(false);
     }
@@ -223,6 +218,8 @@ export default function TicketsPage() {
                     <SelectValue>
                       {ticketTypeVal === "Diamond"
                         ? "VIP"
+                        : ticketTypeVal === "SVIP"
+                        ? "SVIP"
                         : ticketTypeVal === "Gold"
                         ? "VVIP"
                         : "Classic"}
@@ -231,6 +228,7 @@ export default function TicketsPage() {
                   <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[120px]">
                     <SelectItem value="Classic">Classic</SelectItem>
                     <SelectItem value="Diamond">VIP</SelectItem>
+                    <SelectItem value="SVIP">SVIP</SelectItem>
                     <SelectItem value="Gold">VVIP</SelectItem>
                   </SelectContent>
                 </Select>
@@ -290,26 +288,55 @@ export default function TicketsPage() {
 
       <div className="flex flex-col gap-4">
         {preview.id !== "—" ? (
-          <>
-            <div className="mx-auto flex w-full max-w-[380px] justify-center">
-              <TicketCard ref={ticketRef} ticket={livePreview} eventName={settings.name || undefined} venue={settings.place || undefined} />
+          <div className="glass-panel flex flex-1 flex-col items-center justify-center gap-6 p-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success-green/20">
+              <CheckCircle2 className="h-8 w-8 text-success-green" />
             </div>
-            <Button
-              className="mx-auto w-full max-w-[380px] bg-[#25D366] text-white hover:bg-[#1faa54]"
-              disabled={isSharing}
-              onClick={handleShare}
-            >
-          {isSharing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <HugeiconsIcon icon={WhatsappIcon} size={16} className="mr-2" primaryColor="currentColor" />
-          )}
-          Save & Share via WhatsApp
-            </Button>
-          </>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">Pass Generated!</h3>
+              <p className="text-sm text-muted-foreground">
+                Ticket for <span className="font-medium text-foreground">{preview.name}</span> has been created.
+              </p>
+            </div>
+            <div className="w-full max-w-sm space-y-3">
+              <a
+                href={`${typeof window !== "undefined" ? window.location.origin : ""}/ticket/${preview.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View Interactive Ticket
+              </a>
+              <Button
+                className="w-full bg-[#25D366] text-white hover:bg-[#1faa54]"
+                disabled={isSharing}
+                onClick={handleShare}
+              >
+                {isSharing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <HugeiconsIcon icon={WhatsappIcon} size={16} className="mr-2" primaryColor="currentColor" />
+                )}
+                Share via WhatsApp
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setPreview({ id: "—", name: "", age: 0, gender: "Male", phone: "", ticketType: "Classic" });
+                  reset();
+                  setValue("gender", "Male");
+                  setValue("ticketType", "Classic");
+                }}
+              >
+                Issue Another
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="glass-panel flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
-            <span>Fill the form and click <span className="font-medium text-foreground">Generate Pass</span> to preview the ticket.</span>
+            <span>Fill the form and click <span className="font-medium text-foreground">Generate Pass</span> to issue a ticket.</span>
           </div>
         )}
       </div>

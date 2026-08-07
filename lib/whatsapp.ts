@@ -16,36 +16,33 @@ export async function shareTicketViaWhatsApp(
     await document.fonts.ready;
   }
 
-  // Temporarily lock the element's inline width so html-to-image renders
-  // it at exactly 380px regardless of layout. This prevents desktop columns
-  // from making the captured area wider than the card itself.
-  const FIXED_WIDTH = 380;
-  const rect = element.getBoundingClientRect();
+  // Clone the element, render the clone off-screen at full 741px width,
+  // capture it, then remove. This guarantees a consistent 741px ticket
+  // regardless of the on-screen scaled/transformed version.
+  const FIXED_WIDTH = 741;
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.cssText = `position: fixed; top: -99999px; left: 0; width: ${FIXED_WIDTH}px; transform: none; opacity: 1;`;
+  document.body.appendChild(clone);
+
+  // Wait a frame for the clone to render.
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const rect = clone.getBoundingClientRect();
   const HEIGHT = Math.round(rect.height);
-  const prev = {
-    width: element.style.width,
-    height: element.style.height,
-    display: element.style.display,
-  };
-  element.style.width = `${FIXED_WIDTH}px`;
-  element.style.height = `${HEIGHT}px`;
-  element.style.display = "block";
 
   let dataUrl: string;
   try {
-    dataUrl = await toPng(element, {
+    dataUrl = await toPng(clone, {
       pixelRatio: 4,
       backgroundColor: "#000000",
       cacheBust: true,
       width: FIXED_WIDTH,
       height: HEIGHT,
-      style: { lineHeight: "1.25" },
+      style: { lineHeight: "1.25", transform: "none" },
       fontEmbedCSS: undefined,
     });
   } finally {
-    element.style.width = prev.width;
-    element.style.height = prev.height;
-    element.style.display = prev.display;
+    clone.remove();
   }
 
   // Build timestamp filename DDMMYYYYHHmmss.
