@@ -83,15 +83,17 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   const colors = TYPE_COLORS[ticketType] ?? TYPE_COLORS.Classic;
   const typeLabel = TYPE_LABELS[ticketType] ?? "CLASSIC";
 
-  // Build SVG → convert to WebP via sharp.
+  // Build SVG → convert to JPEG via sharp. WebP isn't supported by WhatsApp OG.
+  // Resize to 800x420 and quality 60 to keep under 30KB.
   const svg = buildSvg(name, typeLabel, eventName, colors.bg, colors.accent);
-  const webp = await sharp(Buffer.from(svg))
-    .webp({ quality: 85 })
+  const jpeg = await sharp(Buffer.from(svg))
+    .resize(800, 420)
+    .jpeg({ quality: 55, progressive: true, mozjpeg: true })
     .toBuffer();
 
-  return new Response(webp, {
+  return new Response(jpeg, {
     headers: {
-      "Content-Type": "image/webp",
+      "Content-Type": "image/jpeg",
       "Cache-Control": "public, max-age=86400, s-maxage=86400",
     },
   });
