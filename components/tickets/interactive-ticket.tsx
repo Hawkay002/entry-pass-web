@@ -1,7 +1,7 @@
 // components/tickets/interactive-ticket.tsx — guest-facing interactive ticket.
 // Uses the WebGL AdmitOneTicket component with per-type color themes,
-// built-in tilt + glare + dithering shader. Adds a live status badge,
-// QR code, and Google Wallet button around it.
+// built-in tilt + glare + dithering shader. QR + ticket ID rendered onto the
+// ticket via the layout props.
 
 "use client";
 
@@ -11,7 +11,7 @@ import { db } from "@/lib/firebase/client";
 import { paths } from "@/lib/paths";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, remixTicketStyle } from "@/components/ui/admit-one-ticket";
+import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, TICKET_LAYOUT } from "@/components/ui/admit-one-ticket";
 import QRCode from "qrcode";
 
 interface TicketData {
@@ -38,7 +38,7 @@ const TYPE_STYLES: Record<string, { texture: typeof TICKET_TEXTURE; gradient: ty
     texture: { ...TICKET_TEXTURE, colorBack: "#475569", colorFront: "#e2e8f0", colorHighlight: "#cbd5e1", shape: "ripple", type: "8x8", speed: 0.35 },
     gradient: { ...TICKET_GRADIENT, colorLight: "#e2e8f0", colorMid: "#94a3b8", colorDark: "#475569" },
   },
-  Gold: TICKET_TEXTURE === TICKET_TEXTURE ? { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT } : { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT },
+  Gold: { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT },
 };
 
 const STATUS_STYLE: Record<string, { label: string; className: string }> = {
@@ -47,9 +47,36 @@ const STATUS_STYLE: Record<string, { label: string; className: string }> = {
   absent: { label: "Absent", className: "bg-red-500/20 text-red-400 border-red-500/40" },
 };
 
+// Custom layout: bigger ENTRY PASS label, event name + venue beneath it,
+// QR code rendered as the watermark/stub, ticket ID in the footer.
+function makeLayout(qrCanvas: HTMLCanvasElement | null, ticketId: string, eventName: string, venue: string, typeLabel: string) {
+  return {
+    ...TICKET_LAYOUT,
+    // Bigger label (ENTRY PASS — VIP)
+    labelSize: 28 / 741,
+    labelLead: 34 / 741,
+    labelTop: 50 / 741,
+    // Name stays in its position
+    nameTop: 190 / 741,
+    // Footer: just age/gender (no venue)
+    footerTop: 355 / 741,
+    // Bigger stub text (ticket type)
+    stubSize: 58 / 741,
+  };
+}
+
 export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; settings: SettingsData }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState(ticket.status);
+  const [ticketWidth, setTicketWidth] = useState(741);
+
+  // Responsive width.
+  useEffect(() => {
+    const update = () => setTicketWidth(Math.min(741, window.innerWidth - 32));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   // Render QR.
   useEffect(() => {
@@ -85,32 +112,27 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
         </span>
       </div>
 
-      {/* Shader ticket */}
-      <div className="overflow-hidden rounded-xl">
+      {/* Shader ticket — no overflow-hidden container so tilt isn't clipped */}
+      <div style={{ perspective: "1200px" }}>
         <AdmitOneTicket
           name={ticket.name}
-          presenter="ENTRY PASS"
-          event={typeLabel.toUpperCase()}
+          presenter={`ENTRY PASS — ${typeLabel.toUpperCase()}`}
+          event={settings.name || "Event Name"}
           venue={settings.place || "Venue"}
           dates={`${ticket.age} / ${ticket.gender}`}
           stubText={typeLabel}
           watermark={ticket.id.slice(-4).toUpperCase()}
-          width={Math.min(741, typeof window !== "undefined" ? window.innerWidth - 32 : 741)}
+          width={ticketWidth}
           texture={ticketStyle.texture}
           gradient={ticketStyle.gradient}
         />
       </div>
 
-      {/* QR code */}
-      <div className="mt-6 rounded-xl bg-white p-2">
-        <canvas ref={canvasRef} />
-      </div>
-
-      {/* Ticket ID */}
-      <p className="mt-3 font-mono text-xs text-white/40">{ticket.id}</p>
+      {/* Hidden QR canvas (rendered for Wallet/scanning, not displayed on page) */}
+      <canvas ref={canvasRef} className="hidden" />
 
       {/* Google Wallet button */}
-      <div className="mt-4 w-full max-w-[380px]">
+      <div className="mt-6 w-full max-w-[380px]">
         <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} />
       </div>
 
