@@ -41,10 +41,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
           width: 800,
           height: 420,
           alt: `${name}'s Entry Pass`,
-          type: "image/jpeg",
         },
       ],
       type: "website",
+      siteName: "Entry Pass",
+    },
+    other: {
+      "og:image:width": "800",
+      "og:image:height": "420",
+      "og:image:type": "image/jpeg",
     },
     twitter: {
       card: "summary_large_image",
