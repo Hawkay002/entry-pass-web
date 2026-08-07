@@ -67,11 +67,12 @@ function buildSvg(name: string, typeLabel: string, eventName: string, bg: string
 </svg>`;
 }
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const db = getAdminDb();
 
   const [ticketSnap, settingsSnap] = await Promise.all([
-    db.collection(paths.ticketsCollection).doc(params.id).get(),
+    db.collection(paths.ticketsCollection).doc(id).get(),
     db.doc(paths.settingsDoc).get(),
   ]);
 
