@@ -1027,7 +1027,7 @@ function useDrift(speed: number) {
   return active ? offset : { x: 0, y: 0 };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function gradientDataUrl(g: any, aspect: number) {
   if (typeof document === "undefined") return "";
   const w = 512; const h = Math.max(1, Math.round(w / aspect));
@@ -1044,7 +1044,7 @@ function gradientDataUrl(g: any, aspect: number) {
   return canvas.toDataURL("image/png");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function TicketCard({ name, presenter, event, venue, dates, stubText, watermark, width = REF, geometry = TICKET_GEOMETRY, layout = TICKET_LAYOUT, texture = TICKET_TEXTURE, gradient = TICKET_GRADIENT, className }: any) {
   const height = width / geometry.aspect;
   const perfX = geometry.perforation * width;
@@ -1069,12 +1069,12 @@ function TicketCard({ name, presenter, event, venue, dates, stubText, watermark,
   ] });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function TiltCard({ children, clipPath, maxTilt = 9, scale = 1.02, glare = 0.16, className }: any) {
   const cardRef = React2.useRef<HTMLDivElement>(null);
   const glareRef = React2.useRef<HTMLDivElement>(null);
   const [hovering, setHovering] = React2.useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const onMove = React2.useCallback((e: any) => {
     const el = cardRef.current;
     if (!el) return;
@@ -1095,7 +1095,7 @@ function TiltCard({ children, clipPath, maxTilt = 9, scale = 1.02, glare = 0.16,
   ] });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function AdmitOneTicket({ tilt, ...props }: any) {
   const width = props.width ?? REF;
   const geometry = props.geometry ?? TICKET_GEOMETRY;
@@ -1110,10 +1110,10 @@ function hslToHex(h: number, s: number, l: number) {
   return `#${channel(0)}${channel(8)}${channel(4)}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 var pick = (list: any[], rnd: () => number) => list[Math.floor(rnd() * list.length) % list.length];
 var between = (min: number, max: number, rnd: () => number) => min + rnd() * (max - min);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function remixTexture(prev: any, rnd: () => number = Math.random) {
   const hue = between(8, 44, rnd);
   const dark = hslToHex(hue, 88, between(45, 56, rnd));
@@ -1121,12 +1121,12 @@ function remixTexture(prev: any, rnd: () => number = Math.random) {
   const swap = rnd() < 0.5;
   return { ...prev, colorBack: swap ? light : dark, colorFront: swap ? dark : light, colorHighlight: hslToHex(hue + between(-4, 6, rnd), 90, between(60, 72, rnd)), shape: pick(SHAPES, rnd), type: pick(TYPES, rnd), size: between(0.4, 3.2, rnd), colorSteps: Math.round(between(2, 6, rnd)), rotation: between(0, 360, rnd), scale: between(1.45, 2.1, rnd), offsetX: between(-0.3, 0.3, rnd), offsetY: between(-0.3, 0.3, rnd), speed: between(0.15, 0.7, rnd) };
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function remixGradient(prev: any, rnd: () => number = Math.random) {
   const hue = between(8, 44, rnd);
   return { ...prev, centreX: between(0.25, 0.8, rnd), centreY: between(0.15, 0.7, rnd), radius: between(0.35, 0.85, rnd), midStop: between(0.3, 0.6, rnd), colorLight: hslToHex(hue + between(-4, 8, rnd), 95, between(78, 90, rnd)), colorMid: hslToHex(hue, 96, between(58, 68, rnd)), colorDark: hslToHex(hue - between(0, 6, rnd), 92, between(44, 54, rnd)) };
 }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function remixTicketStyle(prev: any) { return { texture: remixTexture(prev.texture), gradient: remixGradient(prev.gradient) }; }
 
 var admit_one_ticket_default = AdmitOneTicket;
