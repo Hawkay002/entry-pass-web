@@ -63,6 +63,68 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Gyroscope support — tilt based on device orientation (iOS/Android).
+  useEffect(() => {
+    function handleOrientation(e: DeviceOrientationEvent) {
+      const el = tiltRef.current;
+      if (!el) return;
+      // gamma = left/right tilt (-90 to 90), beta = front/back tilt (-180 to 180).
+      const gamma = e.gamma ?? 0; // left/right
+      const beta = e.beta ?? 0;   // front/back
+
+      // Limit tilt range.
+      const maxTilt = 9;
+      const rotX = Math.max(-maxTilt, Math.min(maxTilt, -(beta - 45) / 5));
+      const rotY = Math.max(-maxTilt, Math.min(maxTilt, gamma / 5));
+
+      el.style.transform = `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.02)`;
+
+      // Normalize to 0-100 for holo vars.
+      const px = ((gamma / 45) + 1) * 50;
+      const py = ((beta - 45) / 45 + 1) * 50;
+      const dx = (px - 50) / 50;
+      const dy = (py - 50) / 50;
+      const fromCenter = Math.min(1, Math.sqrt(dx * dx + dy * dy));
+
+      setHoloVars({
+        px: Math.max(0, Math.min(100, Math.round(px))),
+        py: Math.max(0, Math.min(100, Math.round(py))),
+        bx: Math.round(37 + (px / 100) * 26),
+        by: Math.round(33 + (py / 100) * 34),
+        fromCenter,
+        opacity: 1,
+      });
+
+      if (glareRef.current) {
+        glareRef.current.style.background = `radial-gradient(38% 55% at ${px}% ${py}%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%)`;
+      }
+    }
+
+    // iOS 13+ requires permission request.
+    const D = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (D.requestPermission) {
+      // Permission must be requested from a user gesture — we'll listen for first touch.
+      const requestOnTouch = async () => {
+        try {
+          const state = await D.requestPermission!();
+          if (state === "granted") {
+            window.addEventListener("deviceorientation", handleOrientation);
+          }
+        } catch {}
+        document.removeEventListener("touchstart", requestOnTouch);
+      };
+      document.addEventListener("touchstart", requestOnTouch, { once: true });
+      return () => {
+        document.removeEventListener("touchstart", requestOnTouch);
+        window.removeEventListener("deviceorientation", handleOrientation);
+      };
+    }
+
+    // Android/other — no permission needed.
+    window.addEventListener("deviceorientation", handleOrientation);
+    return () => window.removeEventListener("deviceorientation", handleOrientation);
+  }, []);
+
   useEffect(() => {
     QRCode.toDataURL(ticket.id, { width: 200, margin: 1, color: { dark: "#000000", light: "#ffffff" }, errorCorrectionLevel: "H" }).then(setQrDataUrl).catch(() => {});
   }, [ticket.id]);
