@@ -6,6 +6,8 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { LockedTab } from "@/components/layout/locked-tab";
 import { useLockedTabs } from "@/components/layout/locked-tabs-context";
 import { Loader2, Search, Trash2, Filter, Eye, Users } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { WhatsappIcon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -308,12 +310,13 @@ export default function GuestsPage() {
               <TableHead>Ticket ID</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12 text-center">View</TableHead>
+              <TableHead className="w-12 text-center">Share</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin" />
                     <span className="text-sm">Loading guests...</span>
@@ -322,7 +325,7 @@ export default function GuestsPage() {
               </TableRow>
             ) : filtered.length === 0 && tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="h-10 w-10 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">No guests yet.</p>
@@ -332,7 +335,7 @@ export default function GuestsPage() {
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-16 text-center">
+                <TableCell colSpan={9} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Search className="h-8 w-8 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">No guests match your filters.</p>
@@ -382,15 +385,31 @@ export default function GuestsPage() {
                     </span>
                   </TableCell>
                   <TableCell>
+                    <a
+                      href={`/ticket/${t.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                      >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    </a>
+                  </TableCell>
+                  <TableCell>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setViewTicket(t);
-                        setViewOpen(true);
+                        const digits = t.phone.replace(/\D/g, "");
+                        const ticketUrl = `${window.location.origin}/ticket/${t.id}`;
+                        const message = `Hello ${t.name}, here is your Entry Pass 🎫\n*Keep this QR code ready at the entrance.*\n\nView your interactive ticket:\n${ticketUrl}\n\nEnter the phone number used during registration to unlock your ticket.`;
+                        window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
                       }}
                     >
-                      <Eye className="h-4 w-4" />
+                      <HugeiconsIcon icon={WhatsappIcon} size={16} primaryColor="#25D366" />
                     </Button>
                   </TableCell>
                 </TableRow>

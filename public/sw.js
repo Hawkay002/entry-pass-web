@@ -7,7 +7,7 @@
 //
 // No workbox dependency. Kept intentionally small.
 
-const CACHE_VERSION = "entry-pass-v3";
+const CACHE_VERSION = "entry-pass-v4";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 const OFFLINE_URL = "/"; // landing shell used as the offline fallback
