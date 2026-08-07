@@ -276,7 +276,7 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
 
       {/* Google Wallet button */}
       <div className="mt-6 w-full max-w-[380px]">
-        <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} />
+        <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} venue={settings.place} gender={ticket.gender} age={String(ticket.age)} />
       </div>
 
       <p className="mt-4 text-center text-xs text-white/30">
@@ -286,13 +286,13 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
   );
 }
 
-function WalletButton({ ticketId, name, typeLabel, eventName }: { ticketId: string; name: string; typeLabel: string; eventName: string; }) {
+function WalletButton({ ticketId, name, typeLabel, eventName, venue, gender, age }: { ticketId: string; name: string; typeLabel: string; eventName: string; venue: string; gender: string; age: string; }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSave() {
     setLoading(true);
     try {
-      const res = await fetch("/api/wallet-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticketId, name, typeLabel, eventName }) });
+      const res = await fetch("/api/wallet-pass", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticketId, name, typeLabel, eventName, venue, gender, age }) });
       const data = await res.json();
       if (data.ok && data.url) window.location.href = data.url;
     } catch {}

@@ -48,7 +48,7 @@ export function PhoneGate({ ticketId, onVerified }: { ticketId: string; onVerifi
           </div>
           <h1 className="text-2xl font-semibold">Verify Your Ticket</h1>
           <p className="mt-2 text-sm text-white/50">
-            Enter the phone number used when this ticket was issued to view your pass.
+            Enter your full phone number with country code (e.g. +91XXXXXXXXXX) to view your pass.
           </p>
         </div>
 
@@ -59,7 +59,7 @@ export function PhoneGate({ ticketId, onVerified }: { ticketId: string; onVerifi
             autoComplete="tel"
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setError(""); }}
-            placeholder="Your phone number"
+            placeholder="+91XXXXXXXXXX"
             className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-lg tracking-wider outline-none transition-colors placeholder:text-white/30 focus:border-accent-secondary"
             autoFocus
           />

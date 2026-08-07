@@ -62,9 +62,8 @@ export async function POST(request: Request): Promise<Response> {
     const data = snap.data() as Record<string, unknown>;
     const storedPhone = String(data.phone ?? "").replace(/\D/g, "");
 
-    // Match on last 10 digits (handles different dial code prefixes).
-    const last10 = (s: string) => s.slice(-10);
-    const phoneMatches = last10(storedPhone) === last10(phone);
+    // Match the full phone number including country code.
+    const phoneMatches = storedPhone === phone;
 
     if (!phoneMatches) {
       const state = await recordFailure(failKey, FAIL_LIMIT, FAIL_WINDOW_SEC);

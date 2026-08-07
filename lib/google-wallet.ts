@@ -1,98 +1,126 @@
 // lib/google-wallet.ts — Google Wallet "Save to Wallet" JWT generation.
-// Creates an eventTicket pass object and signs it as a JWT using the Firebase
-// service account key (which is also a valid Google service account).
+// Creates a generic pass with custom layout (class + object inline).
+// Uses the Firebase service account key for RS256 signing.
 //
-// Requirements:
-//   - GOOGLE_WALLET_PASS_CLASS_ID env var set (from Google Pay & Wallet Console)
-//   - The service account must be authorized in the Google Pay Console
-//
-// If the pass class isn't configured, the API returns { ok: false } and the
-// button shows "Coming Soon" on the client.
+// Requires GOOGLE_WALLET_ISSUER_ID env var (your Google Pay & Wallet Console issuer ID).
 
 import { authConfig } from "@/lib/env";
 import crypto from "crypto";
 
 const ISSUER_ID = String(authConfig.serviceAccount.client_email ?? "");
+const PRIVATE_KEY = String(authConfig.serviceAccount.private_key ?? "");
 
-interface PassObjectPayload {
-  id: string;
-  classId: string;
-  ticketHolderName: string;
-  ticketNumber: string;
-  barcode: {
-    kind: "walletobjects#barcode";
-    type: "qrCode";
-    value: string;
-    alternateText?: string;
-  };
-  genericType?: string;
-}
-
-interface JwtPayload {
-  iss: string;
-  aud: "google";
-  typ: "savetoandroidpay";
-  payload: {
-    eventTicketObjects: PassObjectPayload[];
-  };
-  origins?: string[];
+interface PassInput {
+  ticketId: string;
+  name: string;
+  typeLabel: string;
+  eventName: string;
+  venue?: string;
+  gender?: string;
+  age?: string;
+  issuerId: string;
 }
 
 /** Sign a JWT using the service account private key (RS256). */
-function signJwt(payload: JwtPayload): string {
+function signJwt(payload: Record<string, unknown>): string {
   const header = { alg: "RS256", typ: "JWT" };
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const token = `${encodedHeader}.${encodedPayload}`;
 
   const privateKey = crypto.createPrivateKey({
-    key: Buffer.from(authConfig.serviceAccount.private_key as string, "utf-8"),
+    key: Buffer.from(PRIVATE_KEY, "utf-8"),
     format: "pem",
   });
 
   const signature = crypto.sign("RSA-SHA256", Buffer.from(token), privateKey);
-  const encodedSignature = signature.toString("base64url");
-
-  return `${token}.${encodedSignature}`;
+  return `${token}.${signature.toString("base64url")}`;
 }
 
 /**
- * Generate a Google Wallet "Save" URL for a ticket.
- * Returns null if the pass class isn't configured.
+ * Generate a Google Wallet "Save" URL for a ticket pass.
+ * Returns null if issuer ID isn't configured.
  */
-export function generateWalletUrl(
-  ticketId: string,
-  name: string,
-  typeLabel: string,
-  eventName: string,
-  passClassId: string
-): string | null {
-  if (!passClassId) return null;
+export function generateWalletUrl(input: PassInput): string | null {
+  if (!input.issuerId) return null;
 
-  const objectId = `${passClassId}.${ticketId}`;
+  const CLASS_ID = `${input.issuerId}.entry_pass_v1`;
+  // Unique per click — allows multiple passes (no dedup).
+  const passObjectId = `${input.issuerId}.${input.ticketId}-${Date.now()}`;
 
-  const payload: JwtPayload = {
-    iss: ISSUER_ID,
-    aud: "google",
-    typ: "savetoandroidpay",
-    payload: {
-      eventTicketObjects: [
-        {
-          id: objectId,
-          classId: passClassId,
-          ticketHolderName: name,
-          ticketNumber: ticketId,
-          barcode: {
-            kind: "walletobjects#barcode",
-            type: "qrCode",
-            value: ticketId,
-            alternateText: typeLabel,
-          },
-        },
-      ],
-    },
+  // Match the ticket shader colors per type.
+  const passColor = input.typeLabel === "VVIP" ? "#ef671c"      // Gold/orange
+    : input.typeLabel === "SVIP" ? "#bf953f"                     // Golden
+    : input.typeLabel === "VIP" ? "#475569"                      // Silver/grey
+    : "#1a1a2e";                                                  // Classic dark
+
+  // Custom layout: two columns (profile type + age).
+  const classObject = {
+    id: CLASS_ID,
+    issuerName: "Entry Pass",
+    classTemplateInfo: {
+      cardTemplateOverride: {
+        cardRowTemplateInfos: [
+          {
+            twoItems: {
+              startItem: {
+                firstValue: { fields: [{ fieldPath: "object.textModulesData['profileType']" }] }
+              },
+              endItem: {
+                firstValue: { fields: [{ fieldPath: "object.textModulesData['profileAge']" }] }
+              }
+            }
+          }
+        ]
+      }
+    }
   };
 
-  const jwt = signJwt(payload);
-  return `https://pay.google.com/gp/v/save/${jwt}`;
+  const passObject = {
+    id: passObjectId,
+    classId: CLASS_ID,
+    genericType: "GENERIC_TYPE_UNSPECIFIED",
+    hexBackgroundColor: passColor,
+    cardTitle: {
+      defaultValue: { language: "en", value: `Entry Pass • ${input.typeLabel}` }
+    },
+    subheader: {
+      defaultValue: { language: "en", value: input.ticketId }
+    },
+    header: {
+      defaultValue: { language: "en", value: "Guest Info" }
+    },
+    textModulesData: [
+      {
+        id: "profileType",
+        header: "PROFILE TYPE",
+        body: input.gender || "N/A"
+      },
+      {
+        id: "profileAge",
+        header: "AGE",
+        body: input.age || "N/A"
+      }
+    ],
+    barcode: {
+      type: "QR_CODE",
+      value: input.ticketId,
+      alternateText: input.eventName && input.venue
+        ? `${input.eventName} • ${input.venue}`
+        : input.eventName || "Entry Pass"
+    }
+  };
+
+  const claims = {
+    iss: ISSUER_ID,
+    aud: "google",
+    typ: "savetowallet",
+    payload: {
+      genericClasses: [classObject],
+      genericObjects: [passObject]
+    }
+  };
+
+  const token = signJwt(claims);
+  return `https://pay.google.com/gp/v/save/${token}`;
 }
