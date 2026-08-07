@@ -88,7 +88,7 @@ export function generateWalletUrl(input: PassInput): string | null {
       defaultValue: { language: "en", value: input.ticketId }
     },
     header: {
-      defaultValue: { language: "en", value: "Guest Info" }
+      defaultValue: { language: "en", value: input.name || "Guest" }
     },
     textModulesData: [
       {
