@@ -71,12 +71,15 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
     if (canvasRef.current) QRCode.toCanvas(canvasRef.current, ticket.id, { width: 100, errorCorrectionLevel: "H" }).catch(() => {});
   }, [ticket.id]);
 
-  const onMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const onMove = useCallback((e: React.PointerEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const el = tiltRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
+    // Handle both pointer and touch events.
+    const clientX = "touches" in e ? e.touches[0]?.clientX ?? 0 : e.clientX;
+    const clientY = "touches" in e ? e.touches[0]?.clientY ?? 0 : e.clientY;
+    const px = (clientX - rect.left) / rect.width;
+    const py = (clientY - rect.top) / rect.height;
     const dx = px - 0.5;
     const dy = py - 0.5;
     const fromCenter = Math.min(1, Math.sqrt(dx * dx + dy * dy) / 0.5);
@@ -113,9 +116,9 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
   // Custom layout: move content up, bigger footer text.
   const customLayout = {
     ...TICKET_LAYOUT,
-    nameTop: 150 / 741,      // moved up from 185
-    footerTop: 290 / 741,    // moved up from 348
-    footerSize: 22 / 741,    // bigger footer text
+    nameTop: 130 / 741,      // moved up
+    footerTop: 320 / 741,    // moved up
+    footerSize: 26 / 741,    // bigger footer text
     inkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.inkColor,
     watermarkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.watermarkColor,
     // Smaller watermark for Classic tickets
@@ -132,6 +135,8 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
         onPointerEnter={() => setHovering(true)}
         onPointerMove={onMove}
         onPointerLeave={onLeave}
+        onTouchMove={onMove}
+        onTouchEnd={onLeave}
         className="relative w-fit will-change-transform"
         style={{
           transition: hovering ? "none" : "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
@@ -139,6 +144,7 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
           transformStyle: "preserve-3d",
           background: "transparent",
           backfaceVisibility: "hidden",
+          touchAction: "none",
         }}
       >
         {/* No holographic overlays — clean shader tickets only */}
@@ -178,10 +184,11 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
         <div
           className="pointer-events-none absolute font-medium uppercase whitespace-nowrap"
           style={{
-            top: `${(325 / 741) * ticketWidth}px`,
+            top: `${(355 / 741) * ticketWidth}px`,
             left: `${(57 / 741) * ticketWidth}px`,
             fontSize: `${customLayout.footerSize * ticketWidth}px`,
             letterSpacing: `${customLayout.footerTracking}em`,
+            fontFamily: "Gotham Nights",
             color: inkColor,
             opacity: 0.85,
             zIndex: 20,

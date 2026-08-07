@@ -79,9 +79,9 @@ export const TicketCard = forwardRef<HTMLDivElement, {
 
   const layout = {
     ...TICKET_LAYOUT,
-    nameTop: 150 / 741,
-    footerTop: 290 / 741,
-    footerSize: 22 / 741,
+    nameTop: 130 / 741,
+    footerTop: 320 / 741,
+    footerSize: 26 / 741,
     inkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.inkColor,
     watermarkColor: isClassic ? "#ffffff" : TICKET_LAYOUT.watermarkColor,
     ...(isClassic ? { watermarkSize: 110 / 741, watermarkOpacity: 0.15 } : {}),
@@ -128,10 +128,11 @@ export const TicketCard = forwardRef<HTMLDivElement, {
         <div
           className="pointer-events-none absolute font-medium uppercase whitespace-nowrap"
           style={{
-            top: `${(325 / 741) * w}px`,
+            top: `${(355 / 741) * w}px`,
             left: `${(57 / 741) * w}px`,
             fontSize: `${(22 / 741) * w}px`,
             letterSpacing: `${layout.footerTracking}em`,
+            fontFamily: "Gotham Nights",
             color: layout.inkColor,
             opacity: 0.85,
             ...(isVVIP ? { textShadow: "0 1px 0 rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.15)" } : {}),

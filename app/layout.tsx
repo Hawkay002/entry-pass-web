@@ -61,6 +61,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <link rel="preload" href="/fonts/the-seasons-bold.otf" as="font" type="font/otf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/the-seasons-regular.otf" as="font" type="font/otf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/gotham-nights.otf" as="font" type="font/otf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/gotham-nights-bold.otf" as="font" type="font/otf" crossOrigin="anonymous" />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <RegisterSw />

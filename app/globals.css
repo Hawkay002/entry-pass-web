@@ -168,6 +168,43 @@
   .scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.15); border-radius: 3px; }
 }
 
+/* The Seasons — for guest names + watermark on tickets */
+@font-face {
+  font-family: "The Seasons";
+  src: url("/fonts/the-seasons-regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "The Seasons";
+  src: url("/fonts/the-seasons-bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Gotham Nights — for labels, footer, stub on tickets */
+@font-face {
+  font-family: "Gotham Nights";
+  src: url("/fonts/gotham-nights.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Gotham Nights";
+  src: url("/fonts/gotham-nights-bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* Force spin animation even when Chrome reduced-motion is enabled */
+@keyframes force-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: force-spin 1s linear infinite !important;
+}
+
 /* ===== Landing animations ===== */
 @keyframes orb-float { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-40px) scale(1.05)} 66%{transform:translate(-20px,20px) scale(0.97)} }
 @keyframes glow-pulse { 0%,100%{opacity:0.4} 50%{opacity:0.8} }

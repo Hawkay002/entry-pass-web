@@ -973,7 +973,7 @@ var ImageDithering = memo2(function ImageDitheringImpl({ speed = defaultPreset2.
 import { jsx as jsx4, jsxs } from "react/jsx-runtime";
 var REF = 741;
 var TICKET_GEOMETRY = { aspect: 741 / 425, cornerRadius: 25 / REF, notchRadius: 21 / REF, perforation: 562 / REF };
-var TICKET_LAYOUT = { padding: 57 / REF, labelTop: 58 / REF, labelSize: 19.72 / REF, labelLead: 28 / REF, labelTracking: 0.016, nameTop: 185 / REF, nameSize: 64.79 / REF, nameLead: 65 / REF, nameTracking: -0.01, footerTop: 348 / REF, footerSize: 19.72 / REF, footerTracking: 0.016, stubSize: 67.61 / REF, stubTracking: 0, stubOpacity: 0.88, watermarkSize: 144 / REF, watermarkOpacity: 0.6, watermarkColor: "#ffdcbe", inkColor: "#5a3520" };
+var TICKET_LAYOUT = { padding: 57 / REF, labelTop: 35 / REF, labelSize: 26 / REF, labelLead: 34 / REF, labelTracking: 0.016, nameTop: 130 / REF, nameSize: 80 / REF, nameLead: 80 / REF, nameTracking: 0.04, footerTop: 320 / REF, footerSize: 26 / REF, footerTracking: 0.016, stubSize: 80 / REF, stubTracking: 0, stubOpacity: 0.88, watermarkSize: 144 / REF, watermarkOpacity: 0.6, watermarkColor: "#ffdcbe", inkColor: "#5a3520", nameWeight: 700, nameFont: "The Seasons", watermarkFont: "The Seasons", bodyFont: "Gotham Nights" };
 var TICKET_TEXTURE = { engine: "generative", colorBack: "#ef671c", colorFront: "#ffc691", colorHighlight: "#fe9046", shape: "warp", type: "random", size: 0.5, colorSteps: 4, originalColors: true, scale: 1, rotation: 0, offsetX: 0, offsetY: 0, speed: 0.4 };
 var TICKET_GRADIENT = { centreX: 0.62, centreY: 0.3, radius: 0.58, midStop: 0.45, colorLight: "#ffc691", colorMid: "#fe9046", colorDark: "#ef671c" };
 var TICKET_STYLE = { texture: TICKET_TEXTURE, gradient: TICKET_GRADIENT };
@@ -988,10 +988,12 @@ function ticketClipPath(width, height, geometry = TICKET_GEOMETRY) {
 }
 
 function splitName(name, max = 3) {
-  const clean = name.trim().replace(/\s+/g, " ").toUpperCase();
+  const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) return [];
+  // Capitalize first letter of each word, rest lowercase.
+  const titleCase = clean.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w/g, (c) => c.toLowerCase());
   const lines = [];
-  for (const word of clean.split(" ")) {
+  for (const word of titleCase.split(" ")) {
     if (lines.length < max) lines.push(word);
     else lines[lines.length - 1] = `${lines[lines.length - 1]} ${word}`;
   }
@@ -1010,7 +1012,8 @@ function fitScale(lines, opts) {
 
 var MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 function usePrefersReducedMotion() {
-  return React2.useSyncExternalStore((onChange) => { const mq = window.matchMedia(MOTION_QUERY); mq.addEventListener("change", onChange); return () => mq.removeEventListener("change", onChange); }, () => window.matchMedia(MOTION_QUERY).matches, () => false);
+  // Force false — always animate shaders regardless of browser reduced-motion setting.
+  return false;
 }
 
 function useDrift(speed: number) {
@@ -1059,10 +1062,10 @@ function TicketCard({ name, presenter, event, venue, dates, stubText, watermark,
     texture.engine === "image" && sourceImage ? jsx4(ImageDithering, { image: sourceImage, colorBack: texture.colorBack, colorFront: texture.colorFront, colorHighlight: texture.colorHighlight, type: texture.type, size: texture.size, colorSteps: texture.colorSteps, originalColors: texture.originalColors, scale: texture.scale, rotation: texture.rotation, offsetX: texture.offsetX + drift.x, offsetY: texture.offsetY + drift.y, fit: "cover", style: shaderStyle })
     : jsx4(Dithering, { colorBack: texture.colorBack, colorFront: texture.colorFront, shape: texture.shape, type: texture.type, size: texture.size, scale: texture.scale, rotation: texture.rotation, offsetX: texture.offsetX, offsetY: texture.offsetY, speed: reduced ? 0 : texture.speed, style: shaderStyle }),
     jsx4("div", { className: "absolute top-0 bottom-0", style: { left: perfX, width: Math.max(1, 22e-4 * width), backgroundImage: `repeating-linear-gradient(to bottom, ${layout.inkColor}55 0 ${0.012 * width}px, transparent ${0.012 * width}px ${0.024 * width}px)` } }),
-    jsx4("div", { className: "pointer-events-none absolute grid place-items-center font-bold tabular-nums", style: { left: perfX, top: 0, width: width - perfX, height, color: layout.watermarkColor, opacity: layout.watermarkOpacity }, children: jsx4("span", { style: { writingMode: "vertical-rl", fontSize: layout.watermarkSize * width, lineHeight: 1, letterSpacing: "-0.04em" }, children: watermark }) }),
-    jsxs("div", { className: "absolute inset-0", style: { color: layout.inkColor, ...(layout.engraved ? { textShadow: "0 1px 0 rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.15)" } : {}) }, children: [
+    jsx4("div", { className: "pointer-events-none absolute grid place-items-center font-bold tabular-nums", style: { left: perfX, top: 0, width: width - perfX, height, color: layout.watermarkColor, opacity: layout.watermarkOpacity, fontFamily: layout.watermarkFont || undefined }, children: jsx4("span", { style: { writingMode: "vertical-rl", fontSize: layout.watermarkSize * width, lineHeight: 1, letterSpacing: "-0.04em" }, children: watermark }) }),
+    jsxs("div", { className: "absolute inset-0", style: { color: layout.inkColor, fontFamily: layout.bodyFont || undefined, ...(layout.engraved ? { textShadow: "0 1px 0 rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.15)" } : {}) }, children: [
       jsxs("div", { className: "absolute whitespace-pre uppercase", style: { left: layout.padding * width, top: layout.labelTop * width, fontSize: layout.labelSize * width, lineHeight: `${layout.labelLead * width}px`, letterSpacing: `${layout.labelTracking}em` }, children: [presenter, "\n", event] }),
-      jsx4("div", { className: "absolute font-medium", style: { left: layout.padding * width, top: layout.nameTop * width, fontSize: layout.nameSize * width * scale, lineHeight: `${layout.nameLead * width * scale}px`, letterSpacing: `${layout.nameTracking}em` }, children: lines.map((line, i) => jsx4("div", { children: line }, i)) }),
+      jsx4("div", { className: "absolute", style: { left: layout.padding * width, top: layout.nameTop * width, fontSize: layout.nameSize * width * scale, lineHeight: `${layout.nameLead * width * scale}px`, letterSpacing: `${layout.nameTracking}em`, fontFamily: layout.nameFont || undefined, fontWeight: layout.nameWeight || 500 }, children: lines.map((line, i) => jsx4("div", { children: line }, i)) }),
       jsxs("div", { className: "absolute whitespace-nowrap uppercase", style: { left: layout.padding * width, top: layout.footerTop * width, fontSize: layout.footerSize * width, letterSpacing: `${layout.footerTracking}em` }, children: venue ? [venue, " \xB7 ", dates] : dates }),
       jsx4("div", { className: "absolute grid place-items-center font-medium whitespace-nowrap uppercase", style: { left: perfX, top: 0, width: width - perfX, height, fontSize: layout.stubSize * width, letterSpacing: `${layout.stubTracking}em`, opacity: layout.stubOpacity }, children: jsx4("span", { style: { writingMode: "vertical-rl" }, children: stubText }) })
     ] })
