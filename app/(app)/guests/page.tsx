@@ -55,9 +55,9 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
 
 const TYPE_STYLES: Record<string, string> = {
   Classic: "bg-[#1a1a2e] text-white border border-white/10",
-  Diamond: "bg-[#475569] text-white",
+  Diamond: "bg-[linear-gradient(125deg,#e2e8f0,#94a3b8)] text-[#0f2433]",
   SVIP: "bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#aa771c)] text-[#3e2704]",
-  Gold: "bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#aa771c)] text-[#3e2704]",
+  Gold: "bg-[radial-gradient(circle_at_62%_30%,#ffc691,#fe9046_45%,#ef671c)] text-[#3e2704]",
 };
 
 export default function GuestsPage() {
@@ -305,11 +305,11 @@ export default function GuestsPage() {
               {selectionMode && <TableHead className="w-10" />}
               <TableHead className="w-12 text-center">#</TableHead>
               <TableHead>Guest Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Details</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Ticket ID</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="text-center">Type</TableHead>
+              <TableHead className="text-center">Details</TableHead>
+              <TableHead className="text-center">Contact</TableHead>
+              <TableHead className="text-center">Ticket ID</TableHead>
+              <TableHead className="text-center">Status</TableHead>
               <TableHead className="w-12 text-center">View</TableHead>
               <TableHead className="w-12 text-center">Share</TableHead>
             </TableRow>
@@ -358,7 +358,7 @@ export default function GuestsPage() {
                     {i + 1}
                   </TableCell>
                   <TableCell className="font-medium">{t.name}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <span
                       className={cn(
                         "inline-block rounded-full px-2 py-0.5 text-xs font-medium",
@@ -368,14 +368,14 @@ export default function GuestsPage() {
                       {TICKET_TYPE_LABELS[t.ticketType]}
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-center text-muted-foreground">
                     {t.age} / {t.gender}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{t.phone}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {t.id.slice(0, 8)}…
+                  <TableCell className="text-center text-muted-foreground">{t.phone}</TableCell>
+                  <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                    {t.id}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <span
                       className={cn(
                         "inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize",
