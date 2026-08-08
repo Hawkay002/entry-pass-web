@@ -54,9 +54,10 @@ const STATUS_STYLES: Record<TicketStatus, string> = {
 };
 
 const TYPE_STYLES: Record<string, string> = {
-  Classic: "bg-white/10 text-white",
-  Diamond: "bg-[linear-gradient(125deg,#e2e8f0,#94a3b8)] text-[#0f2433]",
-  Gold: "bg-[linear-gradient(135deg,#bf953f,#fbf5b7,#aa771c)] text-[#3e2704]",
+  Classic: "bg-[#1a1a2e] text-white border border-white/10",
+  Diamond: "bg-[#475569] text-white",
+  SVIP: "bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#aa771c)] text-[#3e2704]",
+  Gold: "bg-[linear-gradient(135deg,#bf953f,#fcf6ba,#aa771c)] text-[#3e2704]",
 };
 
 export default function GuestsPage() {
