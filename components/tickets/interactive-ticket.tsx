@@ -300,18 +300,12 @@ function WalletButton({ ticketId, name, typeLabel, eventName, venue, gender, age
   }
 
   return (
-    <button
-      onClick={handleSave}
-      disabled={loading}
-      className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-40"
-    >
+    <button onClick={handleSave} disabled={loading} className="w-full disabled:opacity-40">
       {loading ? (
-        <span className="animate-pulse">Preparing...</span>
+        <span className="flex items-center justify-center py-3 text-sm text-white/60">Preparing...</span>
       ) : (
-        <>
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9.5 3c1.93 0 3.5 1.57 3.5 3.5S13.43 14 11.5 14 8 12.43 8 10.5 9.57 7 11.5 7zM5 18c.61-1.42 2.1-2.27 3.5-2.69.7-.21 1.45-.31 2-.31s1.3.1 2 .31c1.4.42 2.89 1.27 3.5 2.69H5z"/></svg>
-          Save to Google Wallet
-        </>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/img/wallet-button.svg" alt="Add to Google Wallet" className="w-full" />
       )}
     </button>
   );
