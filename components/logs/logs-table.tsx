@@ -319,7 +319,7 @@ export function LogsTable({ initialLogs }: { initialLogs: ActivityLog[] }) {
                     </TableCell>
                   )}
                   <TableCell className="text-muted-foreground">
-                    {new Date(l.timestamp).toLocaleString()}
+                    {new Date(l.timestamp).toISOString().replace("T", " ").slice(0, 19)}
                   </TableCell>
                   <TableCell className="font-medium">
                     {l.username}
