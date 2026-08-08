@@ -276,7 +276,7 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Buttons row: Google Wallet + Download */}
-      <div className="mt-6 flex w-full max-w-[380px] items-start gap-3">
+      <div className="mt-6 flex w-full max-w-[280px] items-start gap-2 sm:max-w-[380px] sm:gap-3">
         <div className="flex-1">
           <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} venue={settings.place} gender={ticket.gender} age={String(ticket.age)} />
         </div>
@@ -324,38 +324,46 @@ function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivEleme
     setDownloading(true);
     try {
       const { toPng } = await import("html-to-image");
-      // Reset transform for capture, then restore.
+
+      // Clone the element off-screen at full 741px to avoid mobile scaling issues.
       const el = tiltRef.current;
-      const prevTransform = el.style.transform;
-      el.style.transform = "none";
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.style.cssText = `position: fixed; top: -99999px; left: 0; width: 741px; height: ${741 / (741 / 425)}px; transform: none; opacity: 1;`;
+      document.body.appendChild(clone);
 
       // Wait for fonts + render.
       if (document.fonts) await document.fonts.ready;
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      const sourceDataUrl = await toPng(el, {
-        pixelRatio: 4,
-        backgroundColor: "#000000",
-        cacheBust: true,
-        width: 741,
-        height: 741 / (741 / 425),
-        style: { transform: "none" },
-      });
-
-      el.style.transform = prevTransform;
+      let sourceDataUrl: string;
+      try {
+        sourceDataUrl = await toPng(clone, {
+          pixelRatio: 4,
+          backgroundColor: "#000000",
+          cacheBust: true,
+          width: 741,
+          height: 741 / (741 / 425),
+          style: { transform: "none" },
+        });
+      } finally {
+        clone.remove();
+      }
 
       // Rotate 90° clockwise into portrait using a canvas.
       const img = new Image();
       img.src = sourceDataUrl;
-      await new Promise((res) => { img.onload = res; });
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+
+      const sw = img.naturalWidth;
+      const sh = img.naturalHeight;
 
       const canvas = document.createElement("canvas");
-      canvas.width = img.height;  // swapped for rotation
-      canvas.height = img.width;
+      canvas.width = sh;   // portrait width = landscape height
+      canvas.height = sw;  // portrait height = landscape width
       const ctx = canvas.getContext("2d")!;
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);  // 90° clockwise
-      ctx.drawImage(img, 0, 0);
+      ctx.translate(sh, 0);   // move origin to top-right
+      ctx.rotate(Math.PI / 2); // 90° clockwise
+      ctx.drawImage(img, 0, 0, sw, sh);
 
       const portraitDataUrl = canvas.toDataURL("image/png");
 
