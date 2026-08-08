@@ -333,7 +333,7 @@ function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivEleme
       if (document.fonts) await document.fonts.ready;
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      const dataUrl = await toPng(el, {
+      const sourceDataUrl = await toPng(el, {
         pixelRatio: 4,
         backgroundColor: "#000000",
         cacheBust: true,
@@ -344,8 +344,23 @@ function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivEleme
 
       el.style.transform = prevTransform;
 
+      // Rotate 90° clockwise into portrait using a canvas.
+      const img = new Image();
+      img.src = sourceDataUrl;
+      await new Promise((res) => { img.onload = res; });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = img.height;  // swapped for rotation
+      canvas.height = img.width;
+      const ctx = canvas.getContext("2d")!;
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);  // 90° clockwise
+      ctx.drawImage(img, 0, 0);
+
+      const portraitDataUrl = canvas.toDataURL("image/png");
+
       const link = document.createElement("a");
-      link.href = dataUrl;
+      link.href = portraitDataUrl;
       link.download = `ticket-${ticketId.slice(0, 8)}.png`;
       document.body.appendChild(link);
       link.click();
