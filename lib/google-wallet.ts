@@ -81,14 +81,11 @@ export function generateWalletUrl(input: PassInput): string | null {
     classId: CLASS_ID,
     genericType: "GENERIC_TYPE_UNSPECIFIED",
     hexBackgroundColor: passColor,
-    // Full-bleed hero image fills the pass body. VVIP uses custom pattern.
-    // Others use a simple colored gradient SVG → data URL.
-    ...(input.typeLabel === "VVIP" ? {
-      heroImage: {
-        sourceUri: { uri: "https://etsweb.vercel.app/img/wallet-hero-vvip.png" },
-        contentDescription: { defaultValue: { language: "en", value: "Entry Pass VVIP" } },
-      },
-    } : {}),
+    // Full-bleed hero image per ticket type.
+    heroImage: {
+      sourceUri: { uri: `https://etsweb.vercel.app/img/wallet-hero-${input.typeLabel.toLowerCase()}.png` },
+      contentDescription: { defaultValue: { language: "en", value: `Entry Pass ${input.typeLabel}` } },
+    },
     logo: {
       sourceUri: { uri: "https://etsweb.vercel.app/img/wallet-logo.png" },
       contentDescription: { defaultValue: { language: "en", value: "Entry Pass Logo" } },
