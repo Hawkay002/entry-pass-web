@@ -276,7 +276,8 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Buttons row: Google Wallet + Download */}
-      <div className="mt-6 flex w-full max-w-[280px] items-start gap-2 sm:max-w-[380px] sm:gap-3">
+      <div className="mt-6 flex w-full max-w-[380px] items-start gap-2 sm:gap-3"
+        style={{ transform: "scale(0.73)", transformOrigin: "top center" }}>
         <div className="flex-1">
           <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} venue={settings.place} gender={ticket.gender} age={String(ticket.age)} />
         </div>
