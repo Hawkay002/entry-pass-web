@@ -4,11 +4,12 @@
 
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type RefObject } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { paths } from "@/lib/paths";
 import { TICKET_TYPE_LABELS } from "@/lib/types";
+import { Download, Loader2 } from "lucide-react";
 import AdmitOneTicket, { TICKET_TEXTURE, TICKET_GRADIENT, TICKET_LAYOUT, TICKET_GEOMETRY, ticketClipPath } from "@/components/ui/admit-one-ticket";
 import { HoloOverlay } from "@/components/tickets/holo-overlay";
 import { RadiantOverlay } from "@/components/tickets/radiant-overlay";
@@ -274,9 +275,12 @@ export function InteractiveTicket({ ticket, settings }: { ticket: TicketData; se
       {/* Hidden QR canvas for Wallet */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Google Wallet button */}
-      <div className="mt-6 w-full max-w-[380px]">
-        <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} venue={settings.place} gender={ticket.gender} age={String(ticket.age)} />
+      {/* Buttons row: Google Wallet + Download */}
+      <div className="mt-6 flex w-full max-w-[380px] items-start gap-3">
+        <div className="flex-1">
+          <WalletButton ticketId={ticket.id} name={ticket.name} typeLabel={typeLabel} eventName={settings.name} venue={settings.place} gender={ticket.gender} age={String(ticket.age)} />
+        </div>
+        <DownloadButton tiltRef={tiltRef} ticketId={ticket.id} />
       </div>
 
       <p className="mt-4 text-center text-xs text-white/30">
@@ -306,6 +310,64 @@ function WalletButton({ ticketId, name, typeLabel, eventName, venue, gender, age
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img src="/img/wallet-button.svg" alt="Add to Google Wallet" className="w-full" />
+      )}
+    </button>
+  );
+}
+
+/** Download button — snapshots the ticket as PNG using html-to-image. */
+function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivElement | null>; ticketId: string }) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (!tiltRef.current) return;
+    setDownloading(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      // Reset transform for capture, then restore.
+      const el = tiltRef.current;
+      const prevTransform = el.style.transform;
+      el.style.transform = "none";
+
+      // Wait for fonts + render.
+      if (document.fonts) await document.fonts.ready;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const dataUrl = await toPng(el, {
+        pixelRatio: 4,
+        backgroundColor: "#000000",
+        cacheBust: true,
+        width: 741,
+        height: 741 / (741 / 425),
+        style: { transform: "none" },
+      });
+
+      el.style.transform = prevTransform;
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `ticket-${ticketId.slice(0, 8)}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+    setDownloading(false);
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={downloading}
+      className="mt-0.5 flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[50%] bg-[#1F1F1F] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+      style={{ border: "1.9px solid #747775" }}
+      title="Download ticket image"
+    >
+      {downloading ? (
+        <Loader2 className="h-5 w-5 !animate-spin" />
+      ) : (
+        <Download className="h-5 w-5" />
       )}
     </button>
   );
