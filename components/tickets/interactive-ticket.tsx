@@ -325,29 +325,24 @@ function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivEleme
     try {
       const { toPng } = await import("html-to-image");
 
-      // Clone the element off-screen at full 741px to avoid mobile scaling issues.
+      // Capture the original element (WebGL canvas doesn't clone).
+      // Reset transform temporarily so we get a flat capture.
       const el = tiltRef.current;
-      const clone = el.cloneNode(true) as HTMLElement;
-      clone.style.cssText = `position: fixed; top: -99999px; left: 0; width: 741px; height: ${741 / (741 / 425)}px; transform: none; opacity: 1;`;
-      document.body.appendChild(clone);
+      const prevTransform = el.style.transform;
+      el.style.transform = "none";
 
       // Wait for fonts + render.
       if (document.fonts) await document.fonts.ready;
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      let sourceDataUrl: string;
-      try {
-        sourceDataUrl = await toPng(clone, {
-          pixelRatio: 4,
-          backgroundColor: "#000000",
-          cacheBust: true,
-          width: 741,
-          height: 741 / (741 / 425),
-          style: { transform: "none" },
-        });
-      } finally {
-        clone.remove();
-      }
+      const sourceDataUrl = await toPng(el, {
+        pixelRatio: 2,
+        backgroundColor: "#000000",
+        cacheBust: true,
+        style: { transform: "none" },
+      });
+
+      el.style.transform = prevTransform;
 
       // Rotate 90° clockwise into portrait using a canvas.
       const img = new Image();
