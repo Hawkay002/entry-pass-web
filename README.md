@@ -30,9 +30,10 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 ## Features
 
 ### Core Ticket Loop
-- **Issue Tickets** — Form with live QR preview, instant WhatsApp share with auto-snapshot at 4x resolution. Country code dropdown (203 countries with flags, India default) for phone numbers
-- **Guest List** — 7 sort options, 4 filters (type/status/gender + search), bulk delete, import/export. Liquid glass cards with live summary bar
+- **Issue Tickets** — Form with country code dropdown (203 countries with flags, India default). Confirmation screen after generating with link to interactive ticket + WhatsApp share
+- **Guest List** — 7 sort options, 4 filters (type/status/gender + search), bulk delete, import/export. View eye opens interactive ticket page. Share column sends WhatsApp with ticket link
 - **Scanner** — Camera QR decode at 480px for maximum speed, three-way validation (granted / already scanned / invalid). Shows **who scanned** + **when** on duplicate scans. **Camera flip** button (front/back) with auto-mirror for selfie cam. Offline mode with IndexedDB cache + auto-sync on reconnect
+- **4 Ticket Types** — Classic, VIP, SVIP, VVIP — each with unique shader colors, fonts (The Seasons for names + Gotham Nights for body), and VVIP engraved text effect
 
 ### Admin & Security
 - **Dynamic Roles** — Admin creates roles and adds staff (single or **bulk upload** via CSV/JSON/XLSX). Edit staff name/email later. Google Sign-In maps emails automatically
@@ -63,6 +64,19 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 - **Liquid Glass UI** — All cards, nav, and panels use a frosted glass effect (`backdrop-blur` + saturation + edge highlights) that dynamically blurs the chosen background.
 - **Timezone Selector** — 38 curated timezones (UTC-12 to UTC+14) for deadline accuracy. India (+5:30) default. Persisted per-event.
 - **Country Code Selector** — 203-country dial code dropdown with rectangular SVG flags (flag-icons). India (+91) default.
+- **Custom Fonts** — The Seasons (bold/regular) for guest names + ticket type watermark; Gotham Nights (bold/regular) for labels, footer, stub text. Preloaded via `<link>` tags.
+
+### Interactive Guest Ticket (`/ticket/[id]`)
+- **Phone-Verified Access** — Guests enter their full phone number with country code to unlock their ticket (rate-limited: 5 attempts/IP/5min)
+- **WebGL Shader Ticket** — AdmitOneTicket component with per-type holographic shader textures, perforation notch, ADMIT ONE stub, and ticket type watermark
+- **Tilt + Glare** — 3D perspective tilt following pointer/touch/gyroscope (20° max, iOS permission support). Specular glare overlay clipped to ticket shape
+- **Holographic Overlays** — V Full Art rainbow shimmer for VIP/SVIP (ported from pokemon-cards-css)
+- **Live Status** — Realtime status badge via Firestore onSnapshot (Coming Soon / Arrived / Absent)
+- **QR Code** — Rendered as data URL, overlaid on ticket, scaled proportionally
+- **Download** — Captures ticket at 4x resolution, rotates 90° to portrait, downloads as PNG
+- **Save to Google Wallet** — Official Google Wallet button. Generates signed JWT pass with per-type hero images, logo, guest name, gender, age, and event info. Per-type branded hero images (Classic/VIP/SVIP/VVIP)
+- **OG Link Preview** — Dynamic SVG-based OG image per ticket for WhatsApp/social link previews
+- **WhatsApp Share** — Message includes interactive ticket URL + phone unlock instructions
 
 ### Offline & Kiosk
 - **PWA / Offline Scanner** — Installable app (manifest + service worker, network-first caching). Staff scanner caches a minimal ticket snapshot in IndexedDB (refreshed every 5 min, not an always-on listener) and works with no WiFi; queued scans sync automatically on reconnect. Critical for venues with poor connectivity.
@@ -91,7 +105,8 @@ Built with Next.js 16, React 19, Tailwind v4, Firebase Admin SDK, and Upstash Re
 | **Motion** | [Framer Motion](https://www.framer.com/motion) | 12.43 |
 | **Toasts** | [Sonner](https://sonner.emilkowal.ski) | 2.0.7 |
 | **Flags** | [flag-icons](https://github.com/lipis/flag-icons) | 7.5 |
-| **Timezones** | [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | (removed — now static curated list) |
+| **Wallet** | [Google Wallet API](https://developers.google.com/wallet) | JWT RS256 |
+| **Shaders** | [Paper Shaders](https://github.com/simeydotme/pokemon-cards-css) (AdmitOneTicket) | — |
 
 ---
 
@@ -413,7 +428,8 @@ entry-pass-web/
 |   |-- layout/             # App shell, header, nav, starfield, help tray, SW registration
 |   |-- logs/               # Activity logs table
 |   |-- scanner/            # Shared QR scanner (admin + kiosk)
-|   |-- tickets/            # Ticket card + view modal
+|   |-- tickets/            # Interactive ticket, phone gate, holo overlay, ticket card, view modal
+|   |-- ui/                 # shadcn/ui primitives + AdmitOneTicket (WebGL shader)
 |   `-- ui/                 # shadcn/ui primitives (16 components)
 |-- hooks/                  # React hooks (realtime Firestore listeners)
 |-- lib/
@@ -428,10 +444,11 @@ entry-pass-web/
 |   |-- kiosk-db.ts         # IndexedDB offline cache + scan queue (kiosk, PII-free)
 |   |-- timezones.ts        # 38 curated timezone offsets (UTC-12 to UTC+14)
 |   |-- country-codes.ts    # 203 country dial codes with ISO flags
+|   |-- google-wallet.ts    # Google Wallet JWT signing (inline class+object, RS256)
 |   |-- guest-list.ts       # Filter/sort helpers (pure)
 |   |-- import-export.ts    # Parse + format (CSV/XLSX/PDF/TXT/DOC/JSON + logs export)
-|   `-- whatsapp.ts         # Ticket snapshot -> WhatsApp share
-|-- public/                 # Static assets (icons, PWA manifest + SW, backgrounds, audio)
+|   `-- whatsapp.ts         # Ticket snapshot -> WhatsApp share (ticket URL)
+|-- public/                 # Static assets (icons, PWA manifest + SW, backgrounds, fonts, wallet images, audio)
 |-- scripts/                # Dev utilities (jose fix, claim setup)
 |-- firestore.rules         # Security rules
 |-- proxy.ts                # Edge middleware (cookie gate)
@@ -498,6 +515,8 @@ interface GlobalLockDoc {
 | `/api/auto-absent` | POST | Check deadline, mark coming-soon tickets as absent |
 | `/api/kiosk-checkin` | POST | Public self check-in — validates a PIN + marks a ticket arrived (logged as `SELF_CHECKIN`). Rate-limited: 5 failed PIN attempts/IP/5min. |
 | `/api/kiosk-tickets` | POST | Public, PIN-gated fetch of the PII-free ticket list (`{id, status, scanned}` only) for the kiosk's offline cache. Same rate limit. |
+| `/api/ticket-verify` | POST | Public phone verification for guest ticket access (full number + country code, rate-limited 5/IP/5min) |
+| `/api/wallet-pass` | POST | Generates signed Google Wallet JWT with inline class+object, per-type hero images |
 
 **Login flow:**
 1. Client signs in with Firebase (email/password or Google popup)
