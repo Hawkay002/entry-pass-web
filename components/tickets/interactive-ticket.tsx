@@ -336,7 +336,7 @@ function DownloadButton({ tiltRef, ticketId }: { tiltRef: RefObject<HTMLDivEleme
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
       const sourceDataUrl = await toPng(el, {
-        pixelRatio: 2,
+        pixelRatio: 4,
         backgroundColor: "#000000",
         cacheBust: true,
         style: { transform: "none" },
