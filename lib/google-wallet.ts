@@ -89,6 +89,10 @@ export function generateWalletUrl(input: PassInput): string | null {
         contentDescription: { defaultValue: { language: "en", value: "Entry Pass VVIP" } },
       },
     } : {}),
+    logo: {
+      sourceUri: { uri: "https://etsweb.vercel.app/img/wallet-logo.png" },
+      contentDescription: { defaultValue: { language: "en", value: "Entry Pass Logo" } },
+    },
     cardTitle: {
       defaultValue: { language: "en", value: `Entry Pass • ${input.typeLabel}` }
     },
